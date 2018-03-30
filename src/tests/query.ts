@@ -2,6 +2,7 @@ import { assert } from 'chai';
 import * as _ from 'lodash';
 
 import { Query } from '../lib/query';
+import { SELECT } from '../lib/helpers';
 
 export default function () {
   describe('Query:', () => {
@@ -21,7 +22,7 @@ export default function () {
       assert.equal(q.value({ path: ['a','b'] }), '"a"."b"');
       assert.equal(q.value({ path: ['a'], as: 'c' }), '"a" as "c"');
       assert.equal(q.value({ path: ['a','b'], as: 'c' }), '"a"."b" as "c"');
-      assert.equal(q.value({ select: { from: [{ table: 'a' }] } }), '(select * from "a")');
+      assert.equal(q.value({ select: new SELECT().FROM({ table: 'a' }) }), '(select * from "a")');
     });
     it('IAlias', () => {
       const q = new Query();
@@ -46,6 +47,7 @@ export default function () {
       assert.throw(() => q.from([]));
       assert.equal(q.from([{ table: 'a' }]), '"a"');
       assert.equal(q.from([{ table: 'a', as: 'c' }]), '"a" as "c"');
+      assert.deepEqual(q.tables, { a: ['c'] });
     });
     it('IComparison', () => {
       const q = new Query();
@@ -64,46 +66,43 @@ export default function () {
         { type: 'like', values: [[{ path: ['a','b'] }], [{ data: 'a' }]] },
         '"a"."b" like $7',
       );
+      com(
+        { values: [[{ select: new SELECT().FROM({ table: 'a' }) }]], type: 'exists', not: true },
+        'not exists (select * from "a")',
+      );
     });
     it('ICondition', () => {
       const q = new Query();
       const con = (exp, equal) => assert.equal(q.condition(exp), equal);
       con(
-        {
-          type: 'and',
-          comparisons: [
-            { type: '=', values: [[{ path: ['a','b'] }], [{ data: 'a' }]] },
-            { type: '>', values: [[{ data: 123 }], [{ path: ['x','y'] }]] },
-          ],
-          conditions: [
-            {
-              type: 'and',
-              comparisons: [
-                { type: '=', values: [[{ path: ['a','b'] }], [{ data: 'a' }]] },
-                { type: '>', values: [[{ data: 123 }], [{ path: ['x','y'] }]] },
-              ],
-            },
-          ],
-        },
+        SELECT.AND(
+          SELECT.AND(
+            SELECT.EQ({ path: ['a','b'] }, { data: 'a' }),
+            SELECT.GT({ data: 123 }, { path: ['x','y'] }),
+          ),
+          SELECT.EQ({ path: ['a','b'] }, { data: 'a' }),
+          SELECT.GT({ data: 123 }, { path: ['x','y'] }),
+        ),
         '(("a"."b" = $1) and (123 > "x"."y")) and ("a"."b" = $2) and (123 > "x"."y")',
       );
     });
     it('ISelect', () => {
       const q = new Query();
       const sel = (exp, equal) => assert.equal(q.select(exp), equal);
+      assert.deepEqual(q.tables, {});
+      assert.deepEqual(q.aliases, {});
       sel(
-        {
-          from: [{ table: 'a' }],
-          where: {
-            type: 'and',
-            comparisons: [
-              { type: '=', values: [[{ path: ['a','b'] }], [{ data: 'a' }]] },
-              { type: '>', values: [[{ data: 123 }], [{ path: ['x','y'] }]] },
-            ],
-          },
-        },
+        new SELECT()
+        .FROM({ table: 'a' })
+        .WHERE(
+          SELECT.AND(
+            SELECT.EQ({ path: ['a','b'] }, { data: 'a' }),
+            SELECT.GT({ data: 123 }, { path: ['x','y'] }),
+          ),
+        ),
         'select * from "a" where ("a"."b" = $1) and (123 > "x"."y")',
       );
+      assert.deepEqual(q.tables, { a: [] });
     });
   });
 }

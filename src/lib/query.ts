@@ -59,14 +59,19 @@ export type TWhat = IValue[]|undefined;
 // "field"."field" as "field",
 export type TFrom = IAlias[]|undefined;
 
+export type TComparisonType = '=' | '!=' | '>' | '>=' | '<' | '<=' |
+'in' | 'between' | 'like' | 'exists' | 'null';
+
 export interface IComparison {
-  type?: '=' | '!=' | '>' | '>=' | '<' | '<=' | 'in' | 'between' | 'like';
+  type?: TComparisonType;
   values: IValue[][];
-  modifier?: 'not' | 'is null' | 'is not null';
+  not?: boolean;
 }
 
+export type TConditionType = 'and' | 'or';
+
 export interface ICondition {
-  type: 'and' | 'or';
+  type: TConditionType;
   conditions?: ICondition[];
   comparisons?: IComparison[];
 }
@@ -76,12 +81,28 @@ export type TWhere = ICondition;
 // select
 export interface ISelect {
   what?: TWhat;
-  from: TFrom;
+  from?: TFrom;
   where?: TWhere;
+  limit?: number;
+  offset?: number;
 }
 
 export class Query {
+  constructor(
+    public parentQuery?,
+  ) {
+    if (parentQuery) {
+      this.values = parentQuery.values;
+      this.tables = Object.create(parentQuery.tables);
+      this.aliases = Object.create(parentQuery.aliases);
+    }
+  }
+
   values: string[] = [];
+  tables: { [alias: string]: string[] } = {};
+  aliases: { [table: string]: string } = {};
+  subqueries: Query[] = [];
+  SubQuery = Query;
 
   all(): string {
     return '*';
@@ -130,7 +151,7 @@ export class Query {
     let value;
     if (_.has(exp, 'data')) value = this.data(exp.data);
     else if (_.has(exp, 'path')) value = this.path(exp.path);
-    else if (_.has(exp, 'select')) value = `(${this.select(exp.select)})`;
+    else if (_.has(exp, 'select')) value = `(${this.subselect(exp.select)})`;
     else throw new Error(`Unexpected IValue: ${JSON.stringify(exp)}`);
 
     if (_.has(exp, 'as')) return this.as(value, this.key(exp.as));
@@ -142,7 +163,15 @@ export class Query {
     if (_.has(exp, 'table')) table = this.key(exp.table);
     else throw new Error(`Unexpected IAlias: ${JSON.stringify(exp)}`);
 
-    if (_.has(exp, 'as')) return this.as(table, this.key(exp.as));
+    _.set(this.tables, exp.table, _.get(this.tables, exp.table, []));
+
+    if (_.has(exp, 'as')) {
+      this.tables[exp.table].push(exp.as);
+      _.set(this.aliases, exp.as, exp.table);
+      return this.as(table, this.key(exp.as));
+    }
+
+    _.set(this.aliases, exp.table, exp.table);
     return table;
   }
   
@@ -168,27 +197,41 @@ export class Query {
     assert.isArray(exp.values);
 
     let result = '';
-    if (_.has(exp, 'type')) {
+    if (_.isString(exp.type)) {
       if (_.includes(['=', '!=', '>', '>=', '<', '<='], exp.type)) {
         assert.lengthOf(exp.values, 2);
         assert.lengthOf(exp.values[0], 1);
         assert.lengthOf(exp.values[1], 1);
         result += `${this.value(exp.values[0][0])} ${exp.type} ${this.value(exp.values[1][0])}`;
-      } else if (_.includes(['in', 'between', 'like'], exp.type)) {
+      } else if (exp.type === 'in') {
         assert.lengthOf(exp.values, 2);
         assert.lengthOf(exp.values[0], 1);
         result += `${this.value(exp.values[0][0])} ${exp.type} `;
-        if (exp.type === 'in') {
-          result += `(${
-            _.map(exp.values[1], exp => this.value(exp)).join(',')
-          })`;
-        } else if (exp.type === 'between') {
-          assert.lengthOf(exp.values[1], 2);
-          result += `${this.value(exp.values[1][0])} and ${this.value(exp.values[1][1])}`;
-        } else {
-          assert.lengthOf(exp.values[1], 1);
-          result += `${this.value(exp.values[1][0])}`;
-        }
+        result += `(${
+          _.map(exp.values[1], exp => this.value(exp)).join(',')
+        })`;
+      } else if (exp.type === 'between') {
+        assert.lengthOf(exp.values, 2);
+        assert.lengthOf(exp.values[0], 1);
+        result += `${this.value(exp.values[0][0])} ${exp.type} `;
+        assert.lengthOf(exp.values[1], 2);
+        result += `${this.value(exp.values[1][0])} and ${this.value(exp.values[1][1])}`;
+      } else if (exp.type === 'like') {
+        assert.lengthOf(exp.values, 2);
+        assert.lengthOf(exp.values[0], 1);
+        result += `${this.value(exp.values[0][0])} ${exp.type} `;
+        assert.lengthOf(exp.values[1], 1);
+        result += `${this.value(exp.values[1][0])}`;
+      } else if (exp.type === 'exists') {
+        assert.lengthOf(exp.values, 1);
+        assert.lengthOf(exp.values[0], 1);
+        result += `${this.value(exp.values[0][0])}`;
+        result = `${exp.not ? `not ` : ''}exists ${result}`; 
+      } else if (exp.type === 'null') {
+        assert.lengthOf(exp.values, 1);
+        assert.lengthOf(exp.values[0], 1);
+        result += `${this.value(exp.values[0][0])}`;
+        result = `${result} is ${exp.not ? `not ` : ''} null`; 
       } else {
         throw new Error(`Unexpected IComparison ${exp}`);
       }
@@ -197,13 +240,6 @@ export class Query {
       assert.lengthOf(exp.values[0], 1);
       result += `${this.value(exp.values[0][0])}`;
     }
-
-    if (_.has(exp, 'modifier')) {
-      assert.include(['not', 'is null', 'is not null'], exp.modifier);
-      if (exp.modifier === 'not') result = `not (${result})`;
-      else `(${result}) ${exp.modifier}`;
-    }
-
     return result;
   }
 
@@ -231,10 +267,22 @@ export class Query {
 
     result += ` ${this.what(exp.what)}`;
     result += ` from ${this.from(exp.from)}`;
-    if (_.has(exp, 'where')) {
+    if (_.isObject(exp.where)) {
       result += ` where ${this.where(exp.where)}`;
+    }
+    if (_.isNumber(exp.offset)) {
+      result += ` offset ${exp.offset}`;
+    }
+    if (_.isNumber(exp.limit)) {
+      result += ` limit ${exp.limit}`;
     }
 
     return result;
+  }
+
+  subselect(exp: ISelect): string {
+    const query = new this.SubQuery(this);
+    this.subqueries.push(query);
+    return query.select(exp);
   }
 }

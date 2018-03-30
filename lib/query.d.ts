@@ -15,24 +15,38 @@ export interface IAlias {
 }
 export declare type TWhat = IValue[] | undefined;
 export declare type TFrom = IAlias[] | undefined;
+export declare type TComparisonType = '=' | '!=' | '>' | '>=' | '<' | '<=' | 'in' | 'between' | 'like' | 'exists' | 'null';
 export interface IComparison {
-    type?: '=' | '!=' | '>' | '>=' | '<' | '<=' | 'in' | 'between' | 'like';
+    type?: TComparisonType;
     values: IValue[][];
-    modifier?: 'not' | 'is null' | 'is not null';
+    not?: boolean;
 }
+export declare type TConditionType = 'and' | 'or';
 export interface ICondition {
-    type: 'and' | 'or';
+    type: TConditionType;
     conditions?: ICondition[];
     comparisons?: IComparison[];
 }
 export declare type TWhere = ICondition;
 export interface ISelect {
     what?: TWhat;
-    from: TFrom;
+    from?: TFrom;
     where?: TWhere;
+    limit?: number;
+    offset?: number;
 }
 export declare class Query {
+    parentQuery: any;
+    constructor(parentQuery?: any);
     values: string[];
+    tables: {
+        [alias: string]: string[];
+    };
+    aliases: {
+        [table: string]: string;
+    };
+    subqueries: Query[];
+    SubQuery: typeof Query;
     all(): string;
     key(exp: TKey): string;
     as(a: string, b: string): string;
@@ -48,4 +62,5 @@ export declare class Query {
     condition(exp?: ICondition): string;
     where(exp?: TWhere): string;
     select(exp: ISelect): string;
+    subselect(exp: ISelect): string;
 }
