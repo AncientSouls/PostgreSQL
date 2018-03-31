@@ -68,3 +68,11 @@ export declare class ExpSelect implements IExp {
     VALUE(): VALUE;
 }
 export declare const SELECT: (...what: any[]) => ExpSelect;
+export declare const UNION: (...selects: IExp[]) => {
+    selects: IExp[];
+    type: EExpType;
+};
+export declare const UNIONALL: (...selects: IExp[]) => {
+    selects: IExp[];
+    type: EExpType;
+};

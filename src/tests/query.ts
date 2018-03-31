@@ -9,6 +9,8 @@ const {
   COMPARISONS: { EQ,  NOT,  GT,  GTE,  LT,  LTE,  IN,  BETWEEN,  LIKE,  EXISTS,  NULL },
   VALUES: V,
   PATH,
+  UNION,
+  UNIONALL,
 } = l;
 const { DATA } = V;
 
@@ -143,7 +145,7 @@ export default function () {
         '"a" ASC,"b"."c" DESC',
       );
     });
-    it('IExp', () => {
+    it('IExpSelect', () => {
       const q = new Query();
       assert.equal(
         q.IExp(
@@ -158,11 +160,44 @@ export default function () {
               EQ(PATH('a', 'b'), DATA('a')),
               GT(DATA(123),PATH('x', 'y')),
             ),
-          ).OFFSET(5).LIMIT(3),
+          )
+          .GROUP(PATH('x'), PATH('y'))
+          .ORDER(PATH('x')).ORDER(PATH('z','r'), false)
+          .OFFSET(5).LIMIT(3),
         ),
         'select $1,"x"."y" from "a" where ' +
         '(("a"."b" = $2) or (123 > "x"."y")) and ("a"."b" = $3) and (123 > "x"."y") ' +
+        'group by "x","y" ' +
+        'order by "x" ASC,"z"."r" DESC ' +
         'offset 5 limit 3',
+      );
+    });
+    it('IExpUnion', () => {
+      const q = new Query();
+      const t = n => `(select * from "${n}")`;
+      assert.equal(
+        q.IExp(
+          UNION(
+            SELECT().FROM({ table: 'a' }),
+            SELECT().FROM({ table: 'b' }),
+            SELECT().FROM({ table: 'c' }),
+          ),
+        ),
+        `${t('a')} union ${t('b')} union ${t('c')}`,
+      );
+    });
+    it('IExpUnionall', () => {
+      const q = new Query();
+      const t = n => `(select * from "${n}")`;
+      assert.equal(
+        q.IExp(
+          UNIONALL(
+            SELECT().FROM({ table: 'a' }),
+            SELECT().FROM({ table: 'b' }),
+            SELECT().FROM({ table: 'c' }),
+          ),
+        ),
+        `${t('a')} union all ${t('b')} union all ${t('c')}`,
       );
     });
   });

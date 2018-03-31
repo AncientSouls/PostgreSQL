@@ -170,6 +170,7 @@ export class ExpSelect implements IExp {
   }
   order = undefined;
   ORDER(path: IExpPath, order: boolean = true) {
+    if (!this.order) this.order = [];
     this.order.push({
       ...path,
       order: order ? EExpOrder.ASC : EExpOrder.DESC,
@@ -192,3 +193,6 @@ export class ExpSelect implements IExp {
 }
 
 export const SELECT = (...what) => new ExpSelect().WHAT(...what);
+
+export const UNION = (...selects: IExp[]) => ({ selects, type: EExpType.UNION });
+export const UNIONALL = (...selects: IExp[]) => ({ selects, type: EExpType.UNIONALL });

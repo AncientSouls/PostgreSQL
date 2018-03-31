@@ -67,9 +67,9 @@ export interface IExpOrder extends IExpPath {
   order?: EExpOrder;
 }
 export enum EExpType {
-  SELECT,
-  UNION,
-  UNIONALL,
+  SELECT = 'select',
+  UNION = 'union',
+  UNIONALL = 'union all',
 }
 export type TExpGroup = IExpPath[];
 export type TExpOrder = EExpOrder[];
@@ -82,7 +82,7 @@ export interface IExp {
   order?: TExpOrder;
   offset?: number;
   limit?: number;
-  // selects?: IExp[];
+  selects?: IExp[];
 }
 
 export enum EParsing {
@@ -261,7 +261,7 @@ export function mixin<T extends TClass<IInstance>>(
 
       throw new Error(`Unexpected TExpGroup: ${JSON.stringify(exp)}`);
     }
-  
+
     TExpOrder(exp?: TExpOrder): string {
       if (_.isArray(exp) && exp.length) {
         return _.map(exp, (exp) => {
@@ -285,13 +285,23 @@ export function mixin<T extends TClass<IInstance>>(
       return result;
     }
 
+    IExpUnion(exp: IExp) {
+      assert.include([EExpType.UNION, EExpType.UNIONALL], exp.type);
+      assert.isArray(exp.selects);
+      assert.isOk(exp.selects.length);
+
+      return _.map(exp.selects, (exp) => {
+        return `(${this.IExpSelect(exp)})`;
+      }).join(` ${exp.type} `);
+    }
+
     IExp(exp: IExp) {
       assert.isObject(exp);
       if (exp.type === EExpType.SELECT) {
         return this.IExpSelect(exp);
       }
       if (exp.type === EExpType.UNIONALL || exp.type === EExpType.UNION) {
-        
+        return this.IExpUnion(exp);
       }
       throw new Error(`Unexpected IExp.type: ${exp.type}`);
     }

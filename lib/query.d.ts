@@ -55,9 +55,9 @@ export interface IExpOrder extends IExpPath {
     order?: EExpOrder;
 }
 export declare enum EExpType {
-    SELECT = 0,
-    UNION = 1,
-    UNIONALL = 2,
+    SELECT = "select",
+    UNION = "union",
+    UNIONALL = "union all",
 }
 export declare type TExpGroup = IExpPath[];
 export declare type TExpOrder = EExpOrder[];
@@ -70,6 +70,7 @@ export interface IExp {
     order?: TExpOrder;
     offset?: number;
     limit?: number;
+    selects?: IExp[];
 }
 export declare enum EParsing {
     waiting = 0,

@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
 const query_1 = require("../lib/query");
 const l = require("../lib/language");
-const { SELECT, CONDITIONS: { AND, OR }, COMPARISONS: { EQ, NOT, GT, GTE, LT, LTE, IN, BETWEEN, LIKE, EXISTS, NULL }, VALUES: V, PATH, } = l;
+const { SELECT, CONDITIONS: { AND, OR }, COMPARISONS: { EQ, NOT, GT, GTE, LT, LTE, IN, BETWEEN, LIKE, EXISTS, NULL }, VALUES: V, PATH, UNION, UNIONALL, } = l;
 const { DATA } = V;
 function default_1() {
     describe('Query:', () => {
@@ -92,13 +92,28 @@ function default_1() {
             const q = new query_1.Query();
             chai_1.assert.equal(q.TExpOrder([{ field: 'a' }, { alias: 'b', field: 'c', order: 'desc' }]), '"a" ASC,"b"."c" DESC');
         });
-        it('IExp', () => {
+        it('IExpSelect', () => {
             const q = new query_1.Query();
             chai_1.assert.equal(q.IExp(SELECT('x', PATH('x', 'y'))
                 .FROM({ table: 'a' })
-                .WHERE(AND(OR(EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y'))), EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y')))).OFFSET(5).LIMIT(3)), 'select $1,"x"."y" from "a" where ' +
+                .WHERE(AND(OR(EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y'))), EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y'))))
+                .GROUP(PATH('x'), PATH('y'))
+                .ORDER(PATH('x')).ORDER(PATH('z', 'r'), false)
+                .OFFSET(5).LIMIT(3)), 'select $1,"x"."y" from "a" where ' +
                 '(("a"."b" = $2) or (123 > "x"."y")) and ("a"."b" = $3) and (123 > "x"."y") ' +
+                'group by "x","y" ' +
+                'order by "x" ASC,"z"."r" DESC ' +
                 'offset 5 limit 3');
+        });
+        it('IExpUnion', () => {
+            const q = new query_1.Query();
+            const t = n => `(select * from "${n}")`;
+            chai_1.assert.equal(q.IExp(UNION(SELECT().FROM({ table: 'a' }), SELECT().FROM({ table: 'b' }), SELECT().FROM({ table: 'c' }))), `${t('a')} union ${t('b')} union ${t('c')}`);
+        });
+        it('IExpUnionall', () => {
+            const q = new query_1.Query();
+            const t = n => `(select * from "${n}")`;
+            chai_1.assert.equal(q.IExp(UNIONALL(SELECT().FROM({ table: 'a' }), SELECT().FROM({ table: 'b' }), SELECT().FROM({ table: 'c' }))), `${t('a')} union all ${t('b')} union all ${t('c')}`);
         });
     });
 }
