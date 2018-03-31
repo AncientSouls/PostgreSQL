@@ -1,66 +1,91 @@
-export declare type TKey = string;
-export declare type TField = [TKey];
-export declare type TColumn = [TKey, TKey];
-export declare type TPath = TField | TColumn;
-export declare type TData = boolean | number | string;
-export interface IValue {
-    path?: TPath;
-    data?: TData;
-    select?: ISelect;
-    as?: TKey;
+import { TClass, IInstance } from 'ancient-mixins/lib/mixins';
+import { INode, INodeEventsList } from 'ancient-mixins/lib/node';
+export declare type TParam = string;
+export interface IExpPath {
+    field: string;
+    alias?: string;
 }
-export interface IAlias {
-    table?: TKey;
-    as?: TKey;
+export declare type TExpData = boolean | number | string;
+export interface IExpValue {
+    data?: TExpData;
+    path?: IExpPath;
+    select?: IExp;
+    as?: string;
 }
-export declare type TWhat = IValue[] | undefined;
-export declare type TFrom = IAlias[] | undefined;
-export declare type TComparisonType = '=' | '!=' | '>' | '>=' | '<' | '<=' | 'in' | 'between' | 'like' | 'exists' | 'null';
-export interface IComparison {
-    type?: TComparisonType;
-    values: IValue[][];
+export interface IExpAlias {
+    table?: string;
+    as?: string;
+}
+export declare enum EExpComparisonType {
+    EQ = "=",
+    NOT = "!=",
+    GT = ">",
+    GTE = ">=",
+    LT = "<",
+    LTE = "<=",
+    IN = "in",
+    BETWEEN = "between",
+    LIKE = "like",
+    EXISTS = "exists",
+    NULL = "null",
+}
+export declare enum EExpConditionType {
+    AND = "and",
+    OR = "or",
+}
+export interface IExpComparison {
+    type?: EExpComparisonType;
+    values: IExpValue[][];
     not?: boolean;
 }
-export declare type TConditionType = 'and' | 'or';
-export interface ICondition {
-    type: TConditionType;
-    conditions?: ICondition[];
-    comparisons?: IComparison[];
+export interface IExpCondition {
+    type: EExpConditionType;
+    conditions?: IExpCondition[];
+    comparisons?: IExpComparison[];
 }
-export declare type TWhere = ICondition;
-export interface ISelect {
-    what?: TWhat;
-    from?: TFrom;
-    where?: TWhere;
-    limit?: number;
+export declare type TExpContent = TExpData | IExpValue;
+export declare type TExpWhat = TExpContent[] | undefined;
+export declare type TExpFrom = IExpAlias[];
+export declare type TExpWhere = IExpCondition;
+export declare enum EExpOrder {
+    ASC = "asc",
+    DESC = "desc",
+}
+export interface IExpOrder extends IExpPath {
+    order?: EExpOrder;
+}
+export declare enum EExpType {
+    SELECT = 0,
+    UNION = 1,
+    UNIONALL = 2,
+}
+export declare type TExpGroup = IExpPath[];
+export declare type TExpOrder = EExpOrder[];
+export interface IExp {
+    type: EExpType;
+    what?: TExpWhat;
+    from?: TExpFrom;
+    where?: TExpWhere;
+    group?: TExpGroup;
+    order?: TExpOrder;
     offset?: number;
+    limit?: number;
 }
-export declare class Query {
-    parentQuery: any;
-    constructor(parentQuery?: any);
-    values: string[];
-    tables: {
-        [alias: string]: string[];
-    };
-    aliases: {
-        [table: string]: string;
-    };
-    subqueries: Query[];
-    SubQuery: typeof Query;
-    all(): string;
-    key(exp: TKey): string;
-    as(a: string, b: string): string;
-    field(exp: TField): string;
-    column(exp: TColumn): string;
-    path(exp: TPath): string;
-    data(data: any): string;
-    value(exp: IValue): string;
-    alias(exp: IAlias): string;
-    what(exp?: TWhat): string;
-    from(exp?: TFrom): string;
-    comparison(exp?: IComparison): string;
-    condition(exp?: ICondition): string;
-    where(exp?: TWhere): string;
-    select(exp: ISelect): string;
-    subselect(exp: ISelect): string;
+export declare enum EParsing {
+    waiting = 0,
+    parsing = 1,
+    parsed = 2,
+}
+export interface IQueryEventsList extends INodeEventsList {
+}
+export declare type TQuery = IQuery<IQueryEventsList>;
+export interface IQuery<IEL extends IQueryEventsList> extends INode<IEL> {
+    params: string[];
+    addParam(value: string): TParam;
+    IExp(exp: IExp): void;
+    IExpSelect(exp: IExp): void;
+}
+export declare function mixin<T extends TClass<IInstance>>(superClass: T): any;
+export declare const MixedQuery: TClass<TQuery>;
+export declare class Query extends MixedQuery {
 }

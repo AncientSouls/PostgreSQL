@@ -2,76 +2,103 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
 const query_1 = require("../lib/query");
-const helpers_1 = require("../lib/helpers");
+const l = require("../lib/language");
+const { SELECT, CONDITIONS: { AND, OR }, COMPARISONS: { EQ, NOT, GT, GTE, LT, LTE, IN, BETWEEN, LIKE, EXISTS, NULL }, VALUES: V, PATH, } = l;
+const { DATA } = V;
 function default_1() {
     describe('Query:', () => {
-        it('TData', () => {
+        it('TExpData', () => {
             const q = new query_1.Query();
-            chai_1.assert.equal(q.data(true), 'true');
-            chai_1.assert.equal(q.data(123), '123');
-            chai_1.assert.equal(q.data('123'), '$1');
-            chai_1.assert.deepEqual(q.values, ['123']);
+            chai_1.assert.equal(q.TExpData(true), 'true');
+            chai_1.assert.equal(q.TExpData(123), '123');
+            chai_1.assert.equal(q.TExpData('123'), '$1');
+            chai_1.assert.deepEqual(q.params, ['123']);
         });
-        it('IValue', () => {
+        it('IExpValue', () => {
             const q = new query_1.Query();
-            chai_1.assert.equal(q.value({ data: true }), 'true');
-            chai_1.assert.equal(q.value({ data: 123 }), '123');
-            chai_1.assert.equal(q.value({ data: '123' }), '$1');
-            chai_1.assert.equal(q.value({ path: ['a'] }), '"a"');
-            chai_1.assert.equal(q.value({ path: ['a', 'b'] }), '"a"."b"');
-            chai_1.assert.equal(q.value({ path: ['a'], as: 'c' }), '"a" as "c"');
-            chai_1.assert.equal(q.value({ path: ['a', 'b'], as: 'c' }), '"a"."b" as "c"');
-            chai_1.assert.equal(q.value({ select: new helpers_1.SELECT().FROM({ table: 'a' }) }), '(select * from "a")');
+            chai_1.assert.equal([
+                q.IExpValue(DATA(true)),
+                q.IExpValue(DATA(false).AS('a')),
+                q.IExpValue(DATA(123)),
+                q.IExpValue(DATA(123).AS('b')),
+                q.IExpValue(DATA('123')),
+                q.IExpValue(DATA('123').AS('c')),
+                q.IExpValue(PATH('a').VALUE()),
+                q.IExpValue(PATH('a').VALUE().AS('d')),
+                q.IExpValue(PATH('a', 'b').VALUE()),
+                q.IExpValue(PATH('a', 'b').VALUE().AS('e')),
+            ], [
+                `true`, `false as "a"`,
+                `123`, `123 as "b"`,
+                `$1`, `$2 as "c"`,
+                `"a"`, `"a" as "d"`,
+                `"a"."b"`, `"a"."b" as "e"`,
+            ].join(','));
         });
-        it('IAlias', () => {
+        it('IExpAlias', () => {
             const q = new query_1.Query();
-            chai_1.assert.equal(q.alias({ table: 'a' }), '"a"');
-            chai_1.assert.equal(q.alias({ table: 'a', as: 'c' }), '"a" as "c"');
+            chai_1.assert.equal(q.IExpAlias({ table: 'a' }), '"a"');
+            chai_1.assert.equal(q.IExpAlias({ table: 'a', as: 'c' }), '"a" as "c"');
         });
-        it('TWhat', () => {
+        it('IExpWhat', () => {
             const q = new query_1.Query();
-            chai_1.assert.equal(q.what(), '*');
-            chai_1.assert.equal(q.what([]), '*');
-            chai_1.assert.equal(q.what([{ data: true }]), 'true');
-            chai_1.assert.equal(q.what([{ data: 123 }]), '123');
-            chai_1.assert.equal(q.what([{ data: '123' }]), '$1');
-            chai_1.assert.equal(q.what([{ path: ['a'] }]), '"a"');
-            chai_1.assert.equal(q.what([{ path: ['a', 'b'] }]), '"a"."b"');
-            chai_1.assert.equal(q.what([{ path: ['a'], as: 'c' }]), '"a" as "c"');
-            chai_1.assert.equal(q.what([{ path: ['a', 'b'], as: 'c' }]), '"a"."b" as "c"');
+            chai_1.assert.equal(q.TExpWhat(), '*');
+            chai_1.assert.equal(q.TExpWhat([]), '*');
+            chai_1.assert.equal(q.TExpWhat([
+                DATA(true),
+                DATA(false).AS('a'),
+                DATA(123),
+                DATA(123).AS('b'),
+                DATA('123'),
+                DATA('123').AS('c'),
+                PATH('a').VALUE(),
+                PATH('a').VALUE().AS('d'),
+                PATH('a', 'b').VALUE(),
+                PATH('a', 'b').VALUE().AS('e'),
+            ]), [
+                `true`, `false as "a"`,
+                `123`, `123 as "b"`,
+                `$1`, `$2 as "c"`,
+                `"a"`, `"a" as "d"`,
+                `"a"."b"`, `"a"."b" as "e"`,
+            ].join(','));
+            chai_1.assert.deepEqual(q.params, ['123', '123']);
         });
-        it('TFrom', () => {
+        it('TExpFrom', () => {
             const q = new query_1.Query();
-            chai_1.assert.throw(() => q.from());
-            chai_1.assert.throw(() => q.from([]));
-            chai_1.assert.equal(q.from([{ table: 'a' }]), '"a"');
-            chai_1.assert.equal(q.from([{ table: 'a', as: 'c' }]), '"a" as "c"');
-            chai_1.assert.deepEqual(q.tables, { a: ['c'] });
+            chai_1.assert.throw(() => q.TExpFrom());
+            chai_1.assert.throw(() => q.TExpFrom([]));
+            chai_1.assert.equal(q.TExpFrom([{ table: 'a' }]), '"a"');
+            chai_1.assert.equal(q.TExpFrom([{ table: 'a', as: 'c' }]), '"a" as "c"');
         });
-        it('IComparison', () => {
+        it('IExpComparison', () => {
             const q = new query_1.Query();
-            const com = (exp, equal) => chai_1.assert.equal(q.comparison(exp), equal);
-            com({ values: [[{ data: 'a' }]] }, '$1');
-            com({ type: '=', values: [[{ path: ['a', 'b'] }], [{ data: 'a' }]] }, '"a"."b" = $2');
-            com({ type: 'in', values: [[{ path: ['a', 'b'] }], [{ data: 'a' }, { data: 'b' }]] }, '"a"."b" in ($3,$4)');
-            com({ type: 'between', values: [[{ path: ['a', 'b'] }], [{ data: 'a' }, { data: 'b' }]] }, '"a"."b" between $5 and $6');
-            com({ type: 'like', values: [[{ path: ['a', 'b'] }], [{ data: 'a' }]] }, '"a"."b" like $7');
-            com({ values: [[{ select: new helpers_1.SELECT().FROM({ table: 'a' }) }]], type: 'exists', not: true }, 'not exists (select * from "a")');
+            const com = (exp, equal) => chai_1.assert.equal(q.IExpComparison(exp), equal);
+            chai_1.assert.equal(q.IExpComparison({ values: [[DATA('a')]] }), '$1');
+            chai_1.assert.equal(q.IExpComparison(EQ(PATH('a', 'b'), DATA('a'))), '"a"."b" = $2');
+            chai_1.assert.equal(q.IExpComparison(IN(PATH('a', 'b'), DATA('a'), DATA('b'))), '"a"."b" in ($3,$4)');
+            chai_1.assert.equal(q.IExpComparison(BETWEEN(PATH('a', 'b'), DATA('a'), DATA('b'))), '"a"."b" between $5 and $6');
+            chai_1.assert.equal(q.IExpComparison(LIKE(PATH('a', 'b'), DATA('a'))), '"a"."b" like $7');
         });
-        it('ICondition', () => {
+        it('IExpCondition', () => {
             const q = new query_1.Query();
-            const con = (exp, equal) => chai_1.assert.equal(q.condition(exp), equal);
-            con(helpers_1.SELECT.AND(helpers_1.SELECT.AND(helpers_1.SELECT.EQ({ path: ['a', 'b'] }, { data: 'a' }), helpers_1.SELECT.GT({ data: 123 }, { path: ['x', 'y'] })), helpers_1.SELECT.EQ({ path: ['a', 'b'] }, { data: 'a' }), helpers_1.SELECT.GT({ data: 123 }, { path: ['x', 'y'] })), '(("a"."b" = $1) and (123 > "x"."y")) and ("a"."b" = $2) and (123 > "x"."y")');
+            chai_1.assert.equal(q.IExpCondition(AND(OR(EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y'))), EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y')))), '(("a"."b" = $1) or (123 > "x"."y")) and ("a"."b" = $2) and (123 > "x"."y")');
         });
-        it('ISelect', () => {
+        it('TExpGroup', () => {
             const q = new query_1.Query();
-            const sel = (exp, equal) => chai_1.assert.equal(q.select(exp), equal);
-            chai_1.assert.deepEqual(q.tables, {});
-            chai_1.assert.deepEqual(q.aliases, {});
-            sel(new helpers_1.SELECT()
+            chai_1.assert.equal(q.TExpGroup([PATH('a'), PATH('b', 'c')]), '"a","b"."c"');
+        });
+        it('TExpOrder', () => {
+            const q = new query_1.Query();
+            chai_1.assert.equal(q.TExpOrder([{ field: 'a' }, { alias: 'b', field: 'c', order: 'desc' }]), '"a" ASC,"b"."c" DESC');
+        });
+        it('IExp', () => {
+            const q = new query_1.Query();
+            chai_1.assert.equal(q.IExp(SELECT('x', PATH('x', 'y'))
                 .FROM({ table: 'a' })
-                .WHERE(helpers_1.SELECT.AND(helpers_1.SELECT.EQ({ path: ['a', 'b'] }, { data: 'a' }), helpers_1.SELECT.GT({ data: 123 }, { path: ['x', 'y'] }))), 'select * from "a" where ("a"."b" = $1) and (123 > "x"."y")');
-            chai_1.assert.deepEqual(q.tables, { a: [] });
+                .WHERE(AND(OR(EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y'))), EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y')))).OFFSET(5).LIMIT(3)), 'select $1,"x"."y" from "a" where ' +
+                '(("a"."b" = $2) or (123 > "x"."y")) and ("a"."b" = $3) and (123 > "x"."y") ' +
+                'offset 5 limit 3');
         });
     });
 }

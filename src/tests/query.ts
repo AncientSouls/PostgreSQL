@@ -2,107 +2,168 @@ import { assert } from 'chai';
 import * as _ from 'lodash';
 
 import { Query } from '../lib/query';
-import { SELECT } from '../lib/helpers';
+import * as l from '../lib/language';
+const {
+  SELECT,
+  CONDITIONS: { AND, OR },
+  COMPARISONS: { EQ,  NOT,  GT,  GTE,  LT,  LTE,  IN,  BETWEEN,  LIKE,  EXISTS,  NULL },
+  VALUES: V,
+  PATH,
+} = l;
+const { DATA } = V;
 
 export default function () {
   describe('Query:', () => {
-    it('TData', () => {
+    it('TExpData', () => {
       const q = new Query();
-      assert.equal(q.data(true), 'true');
-      assert.equal(q.data(123), '123');
-      assert.equal(q.data('123'), '$1');
-      assert.deepEqual(q.values, ['123']);
+      assert.equal(q.TExpData(true), 'true');
+      assert.equal(q.TExpData(123), '123');
+      assert.equal(q.TExpData('123'), '$1');
+      assert.deepEqual(q.params, ['123']);
     });
-    it('IValue', () => {
+    it('IExpValue', () => {
       const q = new Query();
-      assert.equal(q.value({ data: true }), 'true');
-      assert.equal(q.value({ data: 123 }), '123');
-      assert.equal(q.value({ data: '123' }), '$1');
-      assert.equal(q.value({ path: ['a'] }), '"a"');
-      assert.equal(q.value({ path: ['a','b'] }), '"a"."b"');
-      assert.equal(q.value({ path: ['a'], as: 'c' }), '"a" as "c"');
-      assert.equal(q.value({ path: ['a','b'], as: 'c' }), '"a"."b" as "c"');
-      assert.equal(q.value({ select: new SELECT().FROM({ table: 'a' }) }), '(select * from "a")');
+      assert.equal(
+        [
+          q.IExpValue(DATA(true)),
+          q.IExpValue(DATA(false).AS('a')),
+          q.IExpValue(DATA(123)),
+          q.IExpValue(DATA(123).AS('b')),
+          q.IExpValue(DATA('123')),
+          q.IExpValue(DATA('123').AS('c')),
+          q.IExpValue(PATH('a').VALUE()),
+          q.IExpValue(PATH('a').VALUE().AS('d')),
+          q.IExpValue(PATH('a', 'b').VALUE()),
+          q.IExpValue(PATH('a', 'b').VALUE().AS('e')),
+        ],
+        [
+          `true`, `false as "a"`,
+          `123`, `123 as "b"`,
+          `$1`, `$2 as "c"`,
+          `"a"`, `"a" as "d"`,
+          `"a"."b"`, `"a"."b" as "e"`,
+        ].join(','),
+      );
     });
-    it('IAlias', () => {
+    it('IExpAlias', () => {
       const q = new Query();
-      assert.equal(q.alias({ table: 'a' }), '"a"');
-      assert.equal(q.alias({ table: 'a', as: 'c' }), '"a" as "c"');
+      assert.equal(q.IExpAlias({ table: 'a' }), '"a"');
+      assert.equal(q.IExpAlias({ table: 'a', as: 'c' }), '"a" as "c"');
     });
-    it('TWhat', () => {
+    it('IExpWhat', () => {
       const q = new Query();
-      assert.equal(q.what(), '*');
-      assert.equal(q.what([]), '*');
-      assert.equal(q.what([{ data: true }]), 'true');
-      assert.equal(q.what([{ data: 123 }]), '123');
-      assert.equal(q.what([{ data: '123' }]), '$1');
-      assert.equal(q.what([{ path: ['a'] }]), '"a"');
-      assert.equal(q.what([{ path: ['a','b'] }]), '"a"."b"');
-      assert.equal(q.what([{ path: ['a'], as: 'c' }]), '"a" as "c"');
-      assert.equal(q.what([{ path: ['a','b'], as: 'c' }]), '"a"."b" as "c"');
+      assert.equal(q.TExpWhat(), '*');
+      assert.equal(q.TExpWhat([]), '*');
+      assert.equal(
+        q.TExpWhat([
+          DATA(true),
+          DATA(false).AS('a'),
+          DATA(123),
+          DATA(123).AS('b'),
+          DATA('123'),
+          DATA('123').AS('c'),
+          PATH('a').VALUE(),
+          PATH('a').VALUE().AS('d'),
+          PATH('a', 'b').VALUE(),
+          PATH('a', 'b').VALUE().AS('e'),
+        ]),
+        [
+          `true`, `false as "a"`,
+          `123`, `123 as "b"`,
+          `$1`, `$2 as "c"`,
+          `"a"`, `"a" as "d"`,
+          `"a"."b"`, `"a"."b" as "e"`,
+        ].join(','),
+      );
+      assert.deepEqual(q.params, ['123','123']);
     });
-    it('TFrom', () => {
+    it('TExpFrom', () => {
       const q = new Query();
-      assert.throw(() => q.from());
-      assert.throw(() => q.from([]));
-      assert.equal(q.from([{ table: 'a' }]), '"a"');
-      assert.equal(q.from([{ table: 'a', as: 'c' }]), '"a" as "c"');
-      assert.deepEqual(q.tables, { a: ['c'] });
+      assert.throw(() => q.TExpFrom());
+      assert.throw(() => q.TExpFrom([]));
+      assert.equal(q.TExpFrom([{ table: 'a' }]), '"a"');
+      assert.equal(q.TExpFrom([{ table: 'a', as: 'c' }]), '"a" as "c"');
     });
-    it('IComparison', () => {
+    it('IExpComparison', () => {
       const q = new Query();
-      const com = (exp, equal) => assert.equal(q.comparison(exp), equal);
-      com({ values: [[{ data: 'a' }]] }, '$1');
-      com({ type: '=', values: [[{ path: ['a','b'] }], [{ data: 'a' }]] }, '"a"."b" = $2');
-      com(
-        { type: 'in', values: [[{ path: ['a','b'] }], [{ data: 'a' }, { data: 'b' }]] },
+      const com = (exp, equal) => assert.equal(q.IExpComparison(exp), equal);
+      assert.equal(q.IExpComparison({ values: [[DATA('a')]] }), '$1');
+      assert.equal(
+        q.IExpComparison(
+          EQ(PATH('a', 'b'), DATA('a')),
+        ),
+        '"a"."b" = $2',
+      );
+      assert.equal(
+        q.IExpComparison(
+          IN(PATH('a', 'b'), DATA('a'), DATA('b')),
+        ),
         '"a"."b" in ($3,$4)',
       );
-      com(
-        { type: 'between', values: [[{ path: ['a','b'] }], [{ data: 'a' }, { data: 'b' }]] },
+      assert.equal(
+        q.IExpComparison(
+          BETWEEN(PATH('a', 'b'), DATA('a'), DATA('b')),
+        ),
         '"a"."b" between $5 and $6',
       );
-      com(
-        { type: 'like', values: [[{ path: ['a','b'] }], [{ data: 'a' }]] },
+      assert.equal(
+        q.IExpComparison(
+          LIKE(PATH('a', 'b'), DATA('a')),
+        ),
         '"a"."b" like $7',
       );
-      com(
-        { values: [[{ select: new SELECT().FROM({ table: 'a' }) }]], type: 'exists', not: true },
-        'not exists (select * from "a")',
-      );
     });
-    it('ICondition', () => {
+    it('IExpCondition', () => {
       const q = new Query();
-      const con = (exp, equal) => assert.equal(q.condition(exp), equal);
-      con(
-        SELECT.AND(
-          SELECT.AND(
-            SELECT.EQ({ path: ['a','b'] }, { data: 'a' }),
-            SELECT.GT({ data: 123 }, { path: ['x','y'] }),
-          ),
-          SELECT.EQ({ path: ['a','b'] }, { data: 'a' }),
-          SELECT.GT({ data: 123 }, { path: ['x','y'] }),
-        ),
-        '(("a"."b" = $1) and (123 > "x"."y")) and ("a"."b" = $2) and (123 > "x"."y")',
-      );
-    });
-    it('ISelect', () => {
-      const q = new Query();
-      const sel = (exp, equal) => assert.equal(q.select(exp), equal);
-      assert.deepEqual(q.tables, {});
-      assert.deepEqual(q.aliases, {});
-      sel(
-        new SELECT()
-        .FROM({ table: 'a' })
-        .WHERE(
-          SELECT.AND(
-            SELECT.EQ({ path: ['a','b'] }, { data: 'a' }),
-            SELECT.GT({ data: 123 }, { path: ['x','y'] }),
+      assert.equal(
+        q.IExpCondition(
+          AND(
+            OR(
+              EQ(PATH('a', 'b'), DATA('a')),
+              GT(DATA(123),PATH('x', 'y')),
+            ),
+            EQ(PATH('a', 'b'), DATA('a')),
+            GT(DATA(123),PATH('x', 'y')),
           ),
         ),
-        'select * from "a" where ("a"."b" = $1) and (123 > "x"."y")',
+        '(("a"."b" = $1) or (123 > "x"."y")) and ("a"."b" = $2) and (123 > "x"."y")',
       );
-      assert.deepEqual(q.tables, { a: [] });
+    });
+    it('TExpGroup', () => {
+      const q = new Query();
+      assert.equal(
+        q.TExpGroup([PATH('a'), PATH('b','c')]),
+        '"a","b"."c"',
+      );
+    });
+    it('TExpOrder', () => {
+      const q = new Query();
+      assert.equal(
+        q.TExpOrder([{ field: 'a' }, { alias: 'b', field: 'c', order: 'desc' }]),
+        '"a" ASC,"b"."c" DESC',
+      );
+    });
+    it('IExp', () => {
+      const q = new Query();
+      assert.equal(
+        q.IExp(
+          SELECT('x', PATH('x', 'y'))
+          .FROM({ table: 'a' })
+          .WHERE(
+            AND(
+              OR(
+                EQ(PATH('a', 'b'), DATA('a')),
+                GT(DATA(123),PATH('x', 'y')),
+              ),
+              EQ(PATH('a', 'b'), DATA('a')),
+              GT(DATA(123),PATH('x', 'y')),
+            ),
+          ).OFFSET(5).LIMIT(3),
+        ),
+        'select $1,"x"."y" from "a" where ' +
+        '(("a"."b" = $2) or (123 > "x"."y")) and ("a"."b" = $3) and (123 > "x"."y") ' +
+        'offset 5 limit 3',
+      );
     });
   });
 }
