@@ -9,7 +9,7 @@ export declare type TExpData = boolean | number | string;
 export interface IExpValue {
     data?: TExpData;
     path?: IExpPath;
-    select?: IExp;
+    exp?: IExp;
     as?: string;
 }
 export interface IExpAlias {

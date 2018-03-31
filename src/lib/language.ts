@@ -132,7 +132,7 @@ export class VALUES {
 export class VALUE implements IExpValue {
   public data;
   public path;
-  public select;
+  public exp;
   public as;
 
   constructor(key: string, exp: any) {
@@ -188,7 +188,7 @@ export class ExpSelect implements IExp {
     return this;
   }
   VALUE() {
-    return new VALUE('select', this);
+    return new VALUE('exp', this);
   }
 }
 

@@ -44,7 +44,7 @@ export declare class VALUES {
 export declare class VALUE implements IExpValue {
     data: any;
     path: any;
-    select: any;
+    exp: any;
     as: any;
     constructor(key: string, exp: any);
     AS(as: string): this;

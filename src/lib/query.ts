@@ -21,7 +21,7 @@ export type TExpData = boolean | number | string;
 export interface IExpValue {
   data?: TExpData;
   path?: IExpPath;
-  select?: IExp;
+  exp?: IExp;
   as?: string;
 }
 export interface IExpAlias {
@@ -141,7 +141,7 @@ export function mixin<T extends TClass<IInstance>>(
       let value;
       if (_.has(exp, 'data')) value = this.TExpData(exp.data);
       else if (_.has(exp, 'path')) value = this.IExpPath(exp.path);
-      else if (_.has(exp, 'select')) value = `(${this.IExpSelect(exp.select)})`;
+      else if (_.has(exp, 'exp')) value = `(${this.IExp(exp.exp)})`;
       else throw new Error(`Unexpected IExpValue: ${JSON.stringify(exp)}`);
   
       if (_.has(exp, 'as')) return this._as(value, this._key(exp.as));
