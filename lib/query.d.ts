@@ -87,15 +87,16 @@ export interface IQuerySelectSql {
     limit?: string;
 }
 export interface IQuerySelect {
-    exp: IExp;
-    sql: string;
-    _sql: IQuerySelectSql;
+    exp?: IExp;
+    sql?: string;
+    _sql?: IQuerySelectSql;
 }
 export interface IQueryEventsList extends INodeEventsList {
 }
 export declare type TQuery = IQuery<IQueryEventsList>;
 export interface IQuery<IEL extends IQueryEventsList> extends INode<IEL> {
     _selects: IQuerySelect[];
+    _selectsContext: IQuerySelect[];
     _tables: {
         [key: string]: string[];
     };
@@ -119,8 +120,6 @@ export interface IQuery<IEL extends IQueryEventsList> extends INode<IEL> {
     IExpSelect(exp: IExp): string;
     IExpUnion(exp: IExp): string;
     IExp(exp: IExp): string;
-    IExp(exp: IExp): void;
-    IExpSelect(exp: IExp): void;
 }
 export declare function mixin<T extends TClass<IInstance>>(superClass: T): any;
 export declare const MixedQuery: TClass<TQuery>;

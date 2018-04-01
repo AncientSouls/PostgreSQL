@@ -101,9 +101,9 @@ export interface IQuerySelectSql {
   limit?: string;
 }
 export interface IQuerySelect {
-  exp: IExp;
-  sql: string;
-  _sql: IQuerySelectSql;
+  exp?: IExp;
+  sql?: string;
+  _sql?: IQuerySelectSql;
 }
 
 export interface IQueryEventsList extends INodeEventsList {
@@ -113,6 +113,7 @@ export type TQuery = IQuery<IQueryEventsList>;
 export interface IQuery<IEL extends IQueryEventsList>
 extends INode<IEL> {
   _selects: IQuerySelect[];
+  _selectsContext: IQuerySelect[];
   _tables: { [key: string]: string[] };
 
   params: string[];
@@ -137,9 +138,6 @@ extends INode<IEL> {
   IExpSelect(exp: IExp): string;
   IExpUnion(exp: IExp): string;
   IExp(exp: IExp): string;
-
-  IExp(exp: IExp): void;
-  IExpSelect(exp: IExp): void;
 }
 
 export function mixin<T extends TClass<IInstance>>(
@@ -147,6 +145,7 @@ export function mixin<T extends TClass<IInstance>>(
 ): any {
   return class Query extends superClass {
     _selects = [];
+    _selectsContext = [];
     _tables = {};
 
     params = [];
@@ -330,32 +329,37 @@ export function mixin<T extends TClass<IInstance>>(
     IExpSelect(exp) {
       assert.equal(exp.type, EExpType.SELECT);
 
-      const _sql: any = {
+      const _select: IQuerySelect = { exp };
+
+      this._selectsContext.push(_select);
+
+      _select._sql = {
         what: this.TExpWhat(exp.what),
         from: this.TExpFrom(exp.from),
       };
       
       if (exp.where) {
-        _sql.where = this.TExpWhere(exp.where);
+        _select._sql.where = this.TExpWhere(exp.where);
       }
       if (exp.group) {
-        _sql.group = this.TExpGroup(exp.group);
+        _select._sql.group = this.TExpGroup(exp.group);
       }
       if (exp.order) {
-        _sql.order = this.TExpOrder(exp.order);
+        _select._sql.order = this.TExpOrder(exp.order);
       }
       if (_.isNumber(exp.offset)) {
-        _sql.offset = exp.offset;
+        _select._sql.offset = exp.offset;
       }
       if (_.isNumber(exp.limit)) {
-        _sql.limit = exp.limit;
+        _select._sql.limit = exp.limit;
       }
       
-      const sql = this._select(_sql);
+      _select.sql = this._select(_select._sql);
 
-      this._selects.push({ exp, sql, _sql });
+      this._selects.push(_select);
+      this._selectsContext.pop();
 
-      return sql;
+      return _select.sql;
     }
 
     IExpUnion(exp) {
@@ -377,23 +381,6 @@ export function mixin<T extends TClass<IInstance>>(
         return this.IExpUnion(exp);
       }
       throw new Error(`Unexpected IExp.type: ${exp.type}`);
-    }
-
-    _id(table) {
-      return 'id';
-    }
-    _all() {
-      const result = [];
-      _.each(this._selects, (select) => {
-        _.each(select.exp.from, (from) => {
-          const alias = from.alias || from.table;
-          result.push(`(${this._select({
-            ...select._sql,
-            what: `${this.addParam(alias)} as table and "${alias}"."${this._id(from.table)}" as id`,
-          })})`);
-        });
-      });
-      return result.join(` union `);
     }
   };
 }
