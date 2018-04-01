@@ -50,7 +50,7 @@ export default function () {
         `insert into ${liveTriggers.liveQueriesTableName} (query, channel) values ${
           _.times(trackingsCount, t => `($${t + 1},'ch${t + 1}')`)
         };`,
-        _.times(trackingsCount, t => `select 'documents'::text as table, documents.id as id from documents order by id offset ${t * 2} limit 3`),
+        _.times(trackingsCount, t => `select 'documents' as table, documents.id as id from documents order by id offset ${t * 2} limit 3`),
       );
     });
     
