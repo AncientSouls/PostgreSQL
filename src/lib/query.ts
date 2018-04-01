@@ -91,9 +91,19 @@ export enum EParsing {
   parsed,
 }
 
+export interface IQuerySelectSql {
+  what?: string;
+  from?: string;
+  where?: string;
+  group?: string;
+  order?: string;
+  offset?: string;
+  limit?: string;
+}
 export interface IQuerySelect {
   exp: IExp;
   sql: string;
+  _sql: IQuerySelectSql;
 }
 
 export interface IQueryEventsList extends INodeEventsList {
@@ -110,6 +120,7 @@ extends INode<IEL> {
 
   _key(exp: string): string;
   _as(a: string, b: string): string;
+  _select(_sql: IQuerySelectSql): string;
 
   TExpData(data: TExpData): string;
   IExpPath(exp: IExpPath): string;
@@ -154,6 +165,16 @@ export function mixin<T extends TClass<IInstance>>(
       assert.isString(a);
       assert.isString(a);
       return `${a} as ${b}`;
+    }
+
+    _select(_sql) {
+      let sql = `select ${_sql.what} from ${_sql.from}`;
+      if (_sql.where) sql += ` where ${_sql.where}`;
+      if (_sql.group) sql += ` group by ${_sql.group}`;
+      if (_sql.order) sql += ` order by ${_sql.order}`;
+      if (_sql.offset) sql += ` offset ${_sql.offset}`;
+      if (_sql.limit) sql += ` limit ${_sql.limit}`;
+      return sql;
     }
 
     TExpData(data) {
@@ -309,16 +330,32 @@ export function mixin<T extends TClass<IInstance>>(
     IExpSelect(exp) {
       assert.equal(exp.type, EExpType.SELECT);
 
-      let result = `select ${this.TExpWhat(exp.what)} from ${this.TExpFrom(exp.from)}`;
-      if (exp.where) result += ` where ${this.TExpWhere(exp.where)}`;
-      if (exp.group) result += ` group by ${this.TExpGroup(exp.group)}`;
-      if (exp.order) result += ` order by ${this.TExpOrder(exp.order)}`;
-      if (_.isNumber(exp.offset)) result += ` offset ${exp.offset}`;
-      if (_.isNumber(exp.limit)) result += ` limit ${exp.limit}`;
+      const _sql: any = {
+        what: this.TExpWhat(exp.what),
+        from: this.TExpFrom(exp.from),
+      };
+      
+      if (exp.where) {
+        _sql.where = this.TExpWhere(exp.where);
+      }
+      if (exp.group) {
+        _sql.group = this.TExpGroup(exp.group);
+      }
+      if (exp.order) {
+        _sql.order = this.TExpOrder(exp.order);
+      }
+      if (_.isNumber(exp.offset)) {
+        _sql.offset = exp.offset;
+      }
+      if (_.isNumber(exp.limit)) {
+        _sql.limit = exp.limit;
+      }
+      
+      const sql = this._select(_sql);
 
-      this._selects.push({ exp, sql: result });
+      this._selects.push({ exp, sql, _sql });
 
-      return result;
+      return sql;
     }
 
     IExpUnion(exp) {
@@ -340,6 +377,23 @@ export function mixin<T extends TClass<IInstance>>(
         return this.IExpUnion(exp);
       }
       throw new Error(`Unexpected IExp.type: ${exp.type}`);
+    }
+
+    _id(table) {
+      return 'id';
+    }
+    _all() {
+      const result = [];
+      _.each(this._selects, (select) => {
+        _.each(select.exp.from, (from) => {
+          const alias = from.alias || from.table;
+          result.push(`(${this._select({
+            ...select._sql,
+            what: `${this.addParam(alias)} as table and "${alias}"."${this._id(from.table)}" as id`,
+          })})`);
+        });
+      });
+      return result.join(` union `);
     }
   };
 }

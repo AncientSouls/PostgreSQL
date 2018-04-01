@@ -65,6 +65,7 @@ export default function () {
           `((${_t('*','"a"')}) union all (${_t('*','"b"')}) union all (${_t('*','"c"')})) as "g"`,
         ].join(','),
       );
+      _.map(q._selects, s => (delete s._sql,s));
       assert.deepEqual(q._selects, [
         { exp: sel('x','y'), sql: _t('"x"', '"y"') },
         { exp: sel('x','y'), sql: _t('"x"', '"y"') },
@@ -242,6 +243,24 @@ export default function () {
           ),
         ),
         `(${_t('*','"a"')}) union all (${_t('*','"b"')}) union all (${_t('*','"c"')})`,
+      );
+    });
+    it('_all', () => {
+      const q = new Query();
+      const select = SELECT('x', PATH('x', 'y'))
+      .FROM({ table: 'a', as: 'b' })
+      .WHERE(
+        AND(
+          EQ(PATH('x', 'y'), DATA('z')),
+          EXISTS(SELECT().FROM({ table: 'w' })),
+        ),
+      );
+      q.IExp(select);
+      assert.equal(
+        q._all(),
+        `(select $3 as table and "w"."id" as id from "w") union ` +
+        `(select $4 as table and "a"."id" as id from "a" as "b" ` +
+        `where ("x"."y" = $2) and (exists (select * from "w")))`,
       );
     });
   });

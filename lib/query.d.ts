@@ -77,9 +77,19 @@ export declare enum EParsing {
     parsing = 1,
     parsed = 2,
 }
+export interface IQuerySelectSql {
+    what?: string;
+    from?: string;
+    where?: string;
+    group?: string;
+    order?: string;
+    offset?: string;
+    limit?: string;
+}
 export interface IQuerySelect {
     exp: IExp;
     sql: string;
+    _sql: IQuerySelectSql;
 }
 export interface IQueryEventsList extends INodeEventsList {
 }
@@ -93,6 +103,7 @@ export interface IQuery<IEL extends IQueryEventsList> extends INode<IEL> {
     addParam(value: string): TParam;
     _key(exp: string): string;
     _as(a: string, b: string): string;
+    _select(_sql: IQuerySelectSql): string;
     TExpData(data: TExpData): string;
     IExpPath(exp: IExpPath): string;
     IExpValue(exp: IExpValue): string;
