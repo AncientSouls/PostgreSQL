@@ -22,6 +22,8 @@ export interface ILiveTriggers<IEL extends ILiveTriggersEventsList>
 extends INode<IEL> {
   liveQueriesTableName: string;
   insertUpdateFunctionName: string;
+  truncateFunctionName: string;
+
   createLiveQueriesTable(): string;
 
   createFunctionInsertUpdate(): string;
@@ -45,6 +47,7 @@ export function mixin<T extends TClass<IInstance>>(
 
     public insertUpdateFunctionName = `ancient_postgresql_insert_update_live`;
     public deleteFunctionName = `ancient_postgresql_delete_live`;
+    public truncateFunctionName = `ancient_postgresql_truncate_live`;
 
     createLiveQueriesTable() {
       return `create table if not exists ${this.liveQueriesTableName} (
@@ -142,13 +145,32 @@ export function mixin<T extends TClass<IInstance>>(
       return `DROP table IF EXISTS ${tableName};`;
     }
     createFunctions() {
-      return `${this.createFunctionInsertUpdate()}${this.createFunctionDelete()}${this.createFunctionTruncate()}`;
+      return [
+        this.createFunctionInsertUpdate(),
+        this.createFunctionDelete(),
+        this.createFunctionTruncate(),
+      ].join('');
     }
     createTriggers(tableName) {
-      return `${this.createTriggerInsertUpdate(tableName)}${this.createTriggerDelete(tableName)}${this.createTriggerTruncate(tableName)}`;
+      return [
+        this.createTriggerInsertUpdate(tableName),
+        this.createTriggerDelete(tableName),
+        this.createTriggerTruncate(tableName),
+      ].join('');
     }
-    dropFunctions(tableName) {
-      
+    dropTriggers(tableName) {
+      return [
+        this.dropTrigger(tableName, this.insertUpdateFunctionName),
+        this.dropTrigger(tableName, this.deleteFunctionName),
+        this.dropTrigger(tableName, this.truncateFunctionName),
+      ].join('');
+    }
+    dropFunctions() {
+      return [
+        this.dropFunction(this.insertUpdateFunctionName),
+        this.dropFunction(this.deleteFunctionName),
+        this.dropFunction(this.truncateFunctionName),
+      ].join('');
     }
   };
 }

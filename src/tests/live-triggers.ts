@@ -15,8 +15,8 @@ export default function () {
     const liveTriggers = new LiveTriggers();
 
     const cleaning = async () => {
-      await client.query(liveTriggers.dropTrigger('documents', liveTriggers.insertUpdateFunctionName));
-      await client.query(liveTriggers.dropFunction(liveTriggers.insertUpdateFunctionName));
+      await client.query(liveTriggers.dropTriggers('documents'));
+      await client.query(liveTriggers.dropFunctions());
       
       await client.query(liveTriggers.dropTable(liveTriggers.liveQueriesTableName));
       await client.query(liveTriggers.dropTable('documents'));

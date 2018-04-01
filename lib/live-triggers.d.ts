@@ -6,6 +6,7 @@ export declare type TLiveTriggers = ILiveTriggers<ILiveTriggersEventsList>;
 export interface ILiveTriggers<IEL extends ILiveTriggersEventsList> extends INode<IEL> {
     liveQueriesTableName: string;
     insertUpdateFunctionName: string;
+    truncateFunctionName: string;
     createLiveQueriesTable(): string;
     createFunctionInsertUpdate(): string;
     createFunctionDelete(): string;

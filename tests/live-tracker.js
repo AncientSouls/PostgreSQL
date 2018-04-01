@@ -16,13 +16,13 @@ const delay = t => new Promise(resolve => setTimeout(resolve, t));
 const subscribing = t => _.times(t, t => `LISTEN ch${t + 1}; `).join('');
 const unsubscribing = t => _.times(t, t => `LISTEN ch${t + 1}; `).join('');
 function default_1() {
-    describe('LiveTriggers:', () => {
+    describe('LiveTrigger:', () => {
         let client;
         const trackingsCount = 3;
         const liveTriggers = new live_triggers_1.LiveTriggers();
         const cleaning = () => __awaiter(this, void 0, void 0, function* () {
-            yield client.query(liveTriggers.dropTriggers('documents'));
-            yield client.query(liveTriggers.dropFunctions());
+            yield client.query(liveTriggers.dropTrigger('documents', liveTriggers.insertUpdateFunctionName));
+            yield client.query(liveTriggers.dropFunction(liveTriggers.insertUpdateFunctionName));
             yield client.query(liveTriggers.dropTable(liveTriggers.liveQueriesTableName));
             yield client.query(liveTriggers.dropTable('documents'));
         });
@@ -124,4 +124,4 @@ function default_1() {
     });
 }
 exports.default = default_1;
-//# sourceMappingURL=live-triggers.js.map
+//# sourceMappingURL=live-tracker.js.map
