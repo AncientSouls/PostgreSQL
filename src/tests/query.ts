@@ -14,6 +14,8 @@ const {
 } = l;
 const { DATA } = V;
 
+const _t = n => `(select * from "${n}")`;
+
 export default function () {
   describe('Query:', () => {
     it('TExpData', () => {
@@ -39,6 +41,16 @@ export default function () {
           q.IExpValue(PATH('a', 'b').VALUE().AS('e')),
           q.IExpValue(SELECT(PATH('x')).FROM({ table: 'y' }).VALUE()),
           q.IExpValue(SELECT(PATH('x')).FROM({ table: 'y' }).VALUE().AS('f')),
+          q.IExpValue(UNIONALL(
+            SELECT().FROM({ table: 'a' }),
+            SELECT().FROM({ table: 'b' }),
+            SELECT().FROM({ table: 'c' }),
+          ).VALUE()),
+          q.IExpValue(UNIONALL(
+            SELECT().FROM({ table: 'a' }),
+            SELECT().FROM({ table: 'b' }),
+            SELECT().FROM({ table: 'c' }),
+          ).VALUE().AS('g')),
         ],
         [
           `true`, `false as "a"`,
@@ -47,6 +59,8 @@ export default function () {
           `"a"`, `"a" as "d"`,
           `"a"."b"`, `"a"."b" as "e"`,
           `(select "x" from "y")`, `(select "x" from "y") as "f"`,
+          `(${_t('a')} union all ${_t('b')} union all ${_t('c')})`,
+          `(${_t('a')} union all ${_t('b')} union all ${_t('c')}) as "g"`,
         ].join(','),
       );
     });
@@ -73,6 +87,16 @@ export default function () {
           PATH('a', 'b').VALUE().AS('e'),
           SELECT(PATH('x')).FROM({ table: 'y' }).VALUE(),
           SELECT(PATH('x')).FROM({ table: 'y' }).VALUE().AS('f'),
+          UNIONALL(
+            SELECT().FROM({ table: 'a' }),
+            SELECT().FROM({ table: 'b' }),
+            SELECT().FROM({ table: 'c' }),
+          ).VALUE(),
+          UNIONALL(
+            SELECT().FROM({ table: 'a' }),
+            SELECT().FROM({ table: 'b' }),
+            SELECT().FROM({ table: 'c' }),
+          ).VALUE().AS('g'),
         ]),
         [
           `true`, `false as "a"`,
@@ -81,6 +105,8 @@ export default function () {
           `"a"`, `"a" as "d"`,
           `"a"."b"`, `"a"."b" as "e"`,
           `(select "x" from "y")`, `(select "x" from "y") as "f"`,
+          `(${_t('a')} union all ${_t('b')} union all ${_t('c')})`,
+          `(${_t('a')} union all ${_t('b')} union all ${_t('c')}) as "g"`,
         ].join(','),
       );
       assert.deepEqual(q.params, ['123','123']);
@@ -196,7 +222,6 @@ export default function () {
     });
     it('IExpUnionall', () => {
       const q = new Query();
-      const t = n => `(select * from "${n}")`;
       assert.equal(
         q.IExp(
           UNIONALL(
@@ -205,7 +230,7 @@ export default function () {
             SELECT().FROM({ table: 'c' }),
           ),
         ),
-        `${t('a')} union all ${t('b')} union all ${t('c')}`,
+        `${_t('a')} union all ${_t('b')} union all ${_t('c')}`,
       );
     });
   });

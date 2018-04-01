@@ -68,11 +68,11 @@ export declare class ExpSelect implements IExp {
     VALUE(): VALUE;
 }
 export declare const SELECT: (...what: any[]) => ExpSelect;
-export declare const UNION: (...selects: IExp[]) => {
-    selects: IExp[];
+export declare class ExpUnion implements IExp {
     type: EExpType;
-};
-export declare const UNIONALL: (...selects: IExp[]) => {
     selects: IExp[];
-    type: EExpType;
-};
+    constructor(type: EExpType, selects: IExp[]);
+    VALUE(): VALUE;
+}
+export declare const UNION: (...selects: IExp[]) => ExpUnion;
+export declare const UNIONALL: (...selects: IExp[]) => ExpUnion;

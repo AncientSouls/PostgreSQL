@@ -195,5 +195,20 @@ export class ExpSelect implements IExp {
 
 export const SELECT = (...what) => new ExpSelect().WHAT(...what);
 
-export const UNION = (...selects: IExp[]) => ({ selects, type: EExpType.UNION });
-export const UNIONALL = (...selects: IExp[]) => ({ selects, type: EExpType.UNIONALL });
+export class ExpUnion implements IExp {
+  constructor(
+    public type: EExpType,
+    public selects: IExp[],
+  ) {}
+
+  VALUE() {
+    return new VALUE('exp', this);
+  }
+}
+
+export const UNION = (...selects: IExp[]) => {
+  return new ExpUnion(EExpType.UNION, selects);
+};
+export const UNIONALL = (...selects: IExp[]) => {
+  return new ExpUnion(EExpType.UNIONALL, selects);
+};
