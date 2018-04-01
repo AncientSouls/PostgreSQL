@@ -24,8 +24,9 @@ export default function () {
       const q = new Query();
       assert.equal(q.TExpData(true), 'true');
       assert.equal(q.TExpData(123), '123');
-      assert.equal(q.TExpData('123'), '$1');
-      assert.deepEqual(q.params, ['123']);
+      assert.equal(q.TExpData('123'), `'123'`);
+      assert.equal(q.TExpData('"123'), '$1');
+      assert.deepEqual(q.params, [`"123`]);
     });
     it('IExpValue', () => {
       const q = new Query();
@@ -37,12 +38,14 @@ export default function () {
           q.IExpValue(DATA(123).AS('b')),
           q.IExpValue(DATA('123')),
           q.IExpValue(DATA('123').AS('c')),
+          q.IExpValue(DATA('"123')),
+          q.IExpValue(DATA('"123').AS('d')),
           q.IExpValue(PATH('a').VALUE()),
-          q.IExpValue(PATH('a').VALUE().AS('d')),
+          q.IExpValue(PATH('a').AS('e')),
           q.IExpValue(PATH('a', 'b').VALUE()),
-          q.IExpValue(PATH('a', 'b').VALUE().AS('e')),
+          q.IExpValue(PATH('a', 'b').AS('f')),
           q.IExpValue(sel('x','y').VALUE()),
-          q.IExpValue(sel('x','y').VALUE().AS('f')),
+          q.IExpValue(sel('x','y').AS('g')),
           q.IExpValue(UNION(
             sel(null, 'a'),
             sel(null, 'b'),
@@ -52,15 +55,16 @@ export default function () {
             sel(null, 'a'),
             sel(null, 'b'),
             sel(null, 'c'),
-          ).VALUE().AS('g')),
+          ).AS('g')),
         ],
         [
           `true`, `false as "a"`,
           `123`, `123 as "b"`,
-          `$1`, `$2 as "c"`,
-          `"a"`, `"a" as "d"`,
-          `"a"."b"`, `"a"."b" as "e"`,
-          `(${_t('"x"', '"y"')})`, `(${_t('"x"', '"y"')}) as "f"`,
+          `'123'`, `'123' as "c"`,
+          `$1`, `$2 as "d"`,
+          `"a"`, `"a" as "e"`,
+          `"a"."b"`, `"a"."b" as "f"`,
+          `(${_t('"x"', '"y"')})`, `(${_t('"x"', '"y"')}) as "g"`,
           `((${_t('*','"a"')}) union (${_t('*','"b"')}) union (${_t('*','"c"')}))`,
           `((${_t('*','"a"')}) union all (${_t('*','"b"')}) union all (${_t('*','"c"')})) as "g"`,
         ].join(','),
@@ -94,12 +98,14 @@ export default function () {
           DATA(123).AS('b'),
           DATA('123'),
           DATA('123').AS('c'),
+          DATA('"123'),
+          DATA('"123').AS('d'),
           PATH('a').VALUE(),
-          PATH('a').VALUE().AS('d'),
+          PATH('a').AS('e'),
           PATH('a', 'b').VALUE(),
-          PATH('a', 'b').VALUE().AS('e'),
+          PATH('a', 'b').AS('f'),
           sel('x','y').VALUE(),
-          sel('x','y').VALUE().AS('f'),
+          sel('x','y').AS('g'),
           UNION(
             sel(null, 'a'),
             sel(null, 'b'),
@@ -109,20 +115,21 @@ export default function () {
             sel(null, 'a'),
             sel(null, 'b'),
             sel(null, 'c'),
-          ).VALUE().AS('g'),
+          ).AS('g'),
         ]),
         [
           `true`, `false as "a"`,
           `123`, `123 as "b"`,
-          `$1`, `$2 as "c"`,
-          `"a"`, `"a" as "d"`,
-          `"a"."b"`, `"a"."b" as "e"`,
-          `(${_t('"x"', '"y"')})`, `(${_t('"x"', '"y"')}) as "f"`,
+          `'123'`, `'123' as "c"`,
+          `$1`, `$2 as "d"`,
+          `"a"`, `"a" as "e"`,
+          `"a"."b"`, `"a"."b" as "f"`,
+          `(${_t('"x"', '"y"')})`, `(${_t('"x"', '"y"')}) as "g"`,
           `((${_t('*','"a"')}) union (${_t('*','"b"')}) union (${_t('*','"c"')}))`,
           `((${_t('*','"a"')}) union all (${_t('*','"b"')}) union all (${_t('*','"c"')})) as "g"`,
         ].join(','),
       );
-      assert.deepEqual(q.params, ['123','123']);
+      assert.deepEqual(q.params, ['"123','"123']);
     });
     it('TExpFrom', () => {
       const q = new Query();
@@ -134,30 +141,30 @@ export default function () {
     it('IExpComparison', () => {
       const q = new Query();
       const com = (exp, equal) => assert.equal(q.IExpComparison(exp), equal);
-      assert.equal(q.IExpComparison({ values: [[DATA('a')]] }), '$1');
+      assert.equal(q.IExpComparison({ values: [[DATA('a')]] }), `'a'`);
       assert.equal(
         q.IExpComparison(
           EQ(PATH('a', 'b'), DATA('a')),
         ),
-        '"a"."b" = $2',
+        `"a"."b" = 'a'`,
       );
       assert.equal(
         q.IExpComparison(
           IN(PATH('a', 'b'), DATA('a'), DATA('b')),
         ),
-        '"a"."b" in ($3,$4)',
+        `"a"."b" in ('a','b')`,
       );
       assert.equal(
         q.IExpComparison(
           BETWEEN(PATH('a', 'b'), DATA('a'), DATA('b')),
         ),
-        '"a"."b" between $5 and $6',
+        `"a"."b" between 'a' and 'b'`,
       );
       assert.equal(
         q.IExpComparison(
           LIKE(PATH('a', 'b'), DATA('a')),
         ),
-        '"a"."b" like $7',
+        `"a"."b" like 'a'`,
       );
     });
     it('IExpCondition', () => {
@@ -173,7 +180,7 @@ export default function () {
             GT(DATA(123),PATH('x', 'y')),
           ),
         ),
-        '(("a"."b" = $1) or (123 > "x"."y")) and ("a"."b" = $2) and (123 > "x"."y")',
+        `(("a"."b" = 'a') or (123 > "x"."y")) and ("a"."b" = 'a') and (123 > "x"."y")`,
       );
     });
     it('TExpGroup', () => {
@@ -211,12 +218,7 @@ export default function () {
           .ORDER(PATH('x')).ORDER(PATH('z','r'), false)
           .OFFSET(5).LIMIT(3),
         ),
-        'select $1,"x"."y" from "a" where ' +
-        '(("a"."b" = $2) or (123 > "x"."y")) and ("a"."b" = $3) and (123 > "x"."y") and ' +
-        `(exists (${_t('"x"', '"y"')})) ` +
-        'group by "x","y" ' +
-        'order by "x" ASC,"z"."r" DESC ' +
-        'offset 5 limit 3',
+        `select 'x',"x"."y" from "a" where (("a"."b" = 'a') or (123 > "x"."y")) and ("a"."b" = 'a') and (123 > "x"."y") and (exists (${_t('"x"', '"y"')})) group by "x","y" order by "x" ASC,"z"."r" DESC offset 5 limit 3`,
       );
     });
     it('IExpUnion', () => {

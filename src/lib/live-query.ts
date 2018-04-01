@@ -46,7 +46,7 @@ export function mixin<T extends TClass<IInstance>>(
           const alias = from.alias || from.table;
           result.push(`(${this._select({
             ...select._sql,
-            what: `${this.addParam(alias)} as table and "${alias}"."${this._id(from.table)}" as id`,
+            what: `${this.TExpData(alias)} as table, "${alias}"."${this._id(from.table)}" as id`,
           })})`);
         });
       });
@@ -57,3 +57,9 @@ export function mixin<T extends TClass<IInstance>>(
 
 export const MixedLiveQuery: TClass<TLiveQuery> = mixin(Query);
 export class LiveQuery extends MixedLiveQuery {}
+
+export const liveQuery = (exp) => {
+  const q = new LiveQuery();
+  q.IExp(exp);
+  return q.createLiveQuery();
+};

@@ -100,6 +100,7 @@ export interface IQuery<IEL extends IQueryEventsList> extends INode<IEL> {
     _tables: {
         [key: string]: string[];
     };
+    ExpDataStringRegexp: RegExp;
     params: string[];
     addParam(value: string): TParam;
     _key(exp: string): string;
@@ -121,6 +122,7 @@ export interface IQuery<IEL extends IQueryEventsList> extends INode<IEL> {
     IExpUnion(exp: IExp): string;
     IExp(exp: IExp): string;
 }
+export declare const ExpDataStringRegexp: RegExp;
 export declare function mixin<T extends TClass<IInstance>>(superClass: T): any;
 export declare const MixedQuery: TClass<TQuery>;
 export declare class Query extends MixedQuery {

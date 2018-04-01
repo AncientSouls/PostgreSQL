@@ -12,6 +12,10 @@ const chai_1 = require("chai");
 const _ = require("lodash");
 const pg_1 = require("pg");
 const live_triggers_1 = require("../lib/live-triggers");
+const live_query_1 = require("../lib/live-query");
+const l = require("../lib/language");
+const { SELECT, CONDITIONS: { AND, OR }, COMPARISONS: { EQ, NOT, GT, GTE, LT, LTE, IN, BETWEEN, LIKE, EXISTS, NULL }, VALUES: V, PATH, UNION, UNIONALL, } = l;
+const { DATA } = V;
 const delay = t => new Promise(resolve => setTimeout(resolve, t));
 const subscribing = t => _.times(t, t => `LISTEN ch${t + 1}; `).join('');
 const unsubscribing = t => _.times(t, t => `LISTEN ch${t + 1}; `).join('');
@@ -44,7 +48,10 @@ function default_1() {
           value int default 0
         );`);
             yield client.query(liveTriggers.createTriggers('documents'));
-            yield client.query(`insert into ${liveTriggers.liveQueriesTableName} (query, channel) values ${_.times(trackingsCount, t => `($${t + 1},'ch${t + 1}')`)};`, _.times(trackingsCount, t => `select 'documents'::text as table, documents.id as id from documents order by id offset ${t * 2} limit 3`));
+            yield client.query(`insert into ${liveTriggers.liveQueriesTableName} (query, channel) values ${_.times(trackingsCount, t => `($${t + 1},'ch${t + 1}')`)};`, _.times(trackingsCount, t => live_query_1.liveQuery(SELECT()
+                .FROM({ table: 'documents' })
+                .ORDER(PATH('id'))
+                .OFFSET(t * 2).LIMIT(3))));
         }));
         afterEach(() => __awaiter(this, void 0, void 0, function* () {
             yield cleaning();

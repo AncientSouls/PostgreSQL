@@ -112,6 +112,10 @@ export class ExpPath implements IExpPath {
   VALUE() {
     return new VALUE('path', this);
   }
+
+  AS(as: string) {
+    return this.VALUE().AS(as);
+  }
 }
 
 export const PATH = (a, b?) => {
@@ -191,6 +195,10 @@ export class ExpSelect implements IExp {
   VALUE() {
     return new VALUE('exp', this);
   }
+  
+  AS(as: string) {
+    return this.VALUE().AS(as);
+  }
 }
 
 export const SELECT = (...what) => new ExpSelect().WHAT(...what);
@@ -203,6 +211,10 @@ export class ExpUnion implements IExp {
 
   VALUE() {
     return new VALUE('exp', this);
+  }
+
+  AS(as: string) {
+    return this.VALUE().AS(as);
   }
 }
 

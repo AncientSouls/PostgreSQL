@@ -15,10 +15,7 @@ function default_1() {
                 .FROM({ table: 'a', as: 'b' }, { table: 'c' })
                 .WHERE(AND(EQ(PATH('x', 'y'), DATA('z')), GT(PATH('c'), DATA(123))));
             q.IExp(select);
-            chai_1.assert.equal(q.createLiveQuery(), `(select $3 as table and "a"."id" as id from "a" as "b","c" where ` +
-                `("x"."y" = $2) and ("c" > 123)) union ` +
-                `(select $4 as table and "c"."id" as id from "a" as "b","c" where ` +
-                `("x"."y" = $2) and ("c" > 123))`);
+            chai_1.assert.equal(q.createLiveQuery(), `(select 'a' as table, "a"."id" as id from "a" as "b","c" where ("x"."y" = 'z') and ("c" > 123)) union (select 'c' as table, "c"."id" as id from "a" as "b","c" where ("x"."y" = 'z') and ("c" > 123))`);
         });
     });
 }

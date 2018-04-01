@@ -9,3 +9,4 @@ export declare function mixin<T extends TClass<IInstance>>(superClass: T): any;
 export declare const MixedLiveQuery: TClass<TLiveQuery>;
 export declare class LiveQuery extends MixedLiveQuery {
 }
+export declare const liveQuery: (exp: any) => string;

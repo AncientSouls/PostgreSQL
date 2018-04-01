@@ -34,6 +34,7 @@ export declare class ExpPath implements IExpPath {
     field: any;
     constructor(a: any, b?: any);
     VALUE(): VALUE;
+    AS(as: string): VALUE;
 }
 export declare const PATH: (a: any, b?: any) => ExpPath;
 export declare class VALUES {
@@ -66,6 +67,7 @@ export declare class ExpSelect implements IExp {
     limit: any;
     LIMIT(limit: number): this;
     VALUE(): VALUE;
+    AS(as: string): VALUE;
 }
 export declare const SELECT: (...what: any[]) => ExpSelect;
 export declare class ExpUnion implements IExp {
@@ -73,6 +75,7 @@ export declare class ExpUnion implements IExp {
     selects: IExp[];
     constructor(type: EExpType, selects: IExp[]);
     VALUE(): VALUE;
+    AS(as: string): VALUE;
 }
 export declare const UNION: (...selects: IExp[]) => ExpUnion;
 export declare const UNIONALL: (...selects: IExp[]) => ExpUnion;

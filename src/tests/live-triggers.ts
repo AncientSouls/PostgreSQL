@@ -1,7 +1,21 @@
 import { assert } from 'chai';
 import * as _ from 'lodash';
 import { Client } from 'pg';
+
 import { LiveTriggers } from '../lib/live-triggers';
+import { liveQuery } from '../lib/live-query';
+
+import * as l from '../lib/language';
+const {
+  SELECT,
+  CONDITIONS: { AND, OR },
+  COMPARISONS: { EQ,  NOT,  GT,  GTE,  LT,  LTE,  IN,  BETWEEN,  LIKE,  EXISTS,  NULL },
+  VALUES: V,
+  PATH,
+  UNION,
+  UNIONALL,
+} = l;
+const { DATA } = V;
 
 const delay = t => new Promise(resolve => setTimeout(resolve, t));
 
@@ -50,7 +64,12 @@ export default function () {
         `insert into ${liveTriggers.liveQueriesTableName} (query, channel) values ${
           _.times(trackingsCount, t => `($${t + 1},'ch${t + 1}')`)
         };`,
-        _.times(trackingsCount, t => `select 'documents' as table, documents.id as id from documents order by id offset ${t * 2} limit 3`),
+        _.times(trackingsCount, t => liveQuery(
+          SELECT()
+          .FROM({ table: 'documents' })
+          .ORDER(PATH('id'))
+          .OFFSET(t * 2).LIMIT(3),
+        )),
       );
     });
     

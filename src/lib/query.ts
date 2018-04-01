@@ -116,6 +116,8 @@ extends INode<IEL> {
   _selectsContext: IQuerySelect[];
   _tables: { [key: string]: string[] };
 
+  ExpDataStringRegexp: RegExp;
+
   params: string[];
   addParam(value: string): TParam;
 
@@ -140,6 +142,8 @@ extends INode<IEL> {
   IExp(exp: IExp): string;
 }
 
+export const ExpDataStringRegexp = /^[a-zA-Zа-яА-Я0-9]*$/; 
+
 export function mixin<T extends TClass<IInstance>>(
   superClass: T,
 ): any {
@@ -147,6 +151,8 @@ export function mixin<T extends TClass<IInstance>>(
     _selects = [];
     _selectsContext = [];
     _tables = {};
+
+    ExpDataStringRegexp = ExpDataStringRegexp;
 
     params = [];
     addParam(data) {
@@ -178,7 +184,12 @@ export function mixin<T extends TClass<IInstance>>(
 
     TExpData(data) {
       if (_.isNumber(data) || _.isBoolean(data)) return data.toString();
-      if (_.isString(data)) return this.addParam(data);
+      if (_.isString(data)) {
+        if (this.ExpDataStringRegexp.test(data)) {
+          return `'${data}'`;
+        }
+        return this.addParam(data);
+      }
       throw new Error(`Unexpected TExpData: ${data}`);
     }
 
