@@ -72,10 +72,10 @@ export class COMPARISON implements IExpComparison {
 }
 
 export class CONDITIONS {
-  static AND(...conds) {
+  static AND(...conds: (IExpCondition|IExpComparison)[]) {
     return new CONDITION(EExpConditionType.AND, conds);
   }
-  static OR(...conds) {
+  static OR(...conds: (IExpCondition|IExpComparison)[]) {
     return new CONDITION(EExpConditionType.OR, conds);
   }
 }
@@ -89,8 +89,9 @@ export class CONDITION implements IExpCondition {
     conds: any[],
   ) {
     _.each(conds, (c) => {
-      if (c instanceof CONDITION) this.conditions.push(c);
-      if (c instanceof COMPARISON) this.comparisons.push(c);
+      if (c instanceof CONDITION) return this.conditions.push(c);
+      if (c instanceof COMPARISON) return this.comparisons.push(c);
+      throw new Error(`Invalid IExpCondition|IExpComparison: ${JSON.stringify(c)}`);
     });
   }
 }

@@ -159,6 +159,7 @@ export default function () {
               ),
               EQ(PATH('a', 'b'), DATA('a')),
               GT(DATA(123),PATH('x', 'y')),
+              EXISTS(SELECT(PATH('x')).FROM({ table: 'y' })),
             ),
           )
           .GROUP(PATH('x'), PATH('y'))
@@ -166,7 +167,8 @@ export default function () {
           .OFFSET(5).LIMIT(3),
         ),
         'select $1,"x"."y" from "a" where ' +
-        '(("a"."b" = $2) or (123 > "x"."y")) and ("a"."b" = $3) and (123 > "x"."y") ' +
+        '(("a"."b" = $2) or (123 > "x"."y")) and ("a"."b" = $3) and (123 > "x"."y") and ' +
+        '(exists (select "x" from "y")) ' +
         'group by "x","y" ' +
         'order by "x" ASC,"z"."r" DESC ' +
         'offset 5 limit 3',
