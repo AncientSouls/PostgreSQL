@@ -27,12 +27,15 @@ function default_1() {
                 q.IExpValue(PATH('a').VALUE().AS('d')),
                 q.IExpValue(PATH('a', 'b').VALUE()),
                 q.IExpValue(PATH('a', 'b').VALUE().AS('e')),
+                q.IExpValue(SELECT(PATH('x')).FROM({ table: 'y' }).VALUE()),
+                q.IExpValue(SELECT(PATH('x')).FROM({ table: 'y' }).VALUE().AS('f')),
             ], [
                 `true`, `false as "a"`,
                 `123`, `123 as "b"`,
                 `$1`, `$2 as "c"`,
                 `"a"`, `"a" as "d"`,
                 `"a"."b"`, `"a"."b" as "e"`,
+                `(select "x" from "y")`, `(select "x" from "y") as "f"`,
             ].join(','));
         });
         it('IExpAlias', () => {
@@ -55,12 +58,15 @@ function default_1() {
                 PATH('a').VALUE().AS('d'),
                 PATH('a', 'b').VALUE(),
                 PATH('a', 'b').VALUE().AS('e'),
+                SELECT(PATH('x')).FROM({ table: 'y' }).VALUE(),
+                SELECT(PATH('x')).FROM({ table: 'y' }).VALUE().AS('f'),
             ]), [
                 `true`, `false as "a"`,
                 `123`, `123 as "b"`,
                 `$1`, `$2 as "c"`,
                 `"a"`, `"a" as "d"`,
                 `"a"."b"`, `"a"."b" as "e"`,
+                `(select "x" from "y")`, `(select "x" from "y") as "f"`,
             ].join(','));
             chai_1.assert.deepEqual(q.params, ['123', '123']);
         });
@@ -96,11 +102,12 @@ function default_1() {
             const q = new query_1.Query();
             chai_1.assert.equal(q.IExp(SELECT('x', PATH('x', 'y'))
                 .FROM({ table: 'a' })
-                .WHERE(AND(OR(EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y'))), EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y'))))
+                .WHERE(AND(OR(EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y'))), EQ(PATH('a', 'b'), DATA('a')), GT(DATA(123), PATH('x', 'y')), EXISTS(SELECT(PATH('x')).FROM({ table: 'y' }))))
                 .GROUP(PATH('x'), PATH('y'))
                 .ORDER(PATH('x')).ORDER(PATH('z', 'r'), false)
                 .OFFSET(5).LIMIT(3)), 'select $1,"x"."y" from "a" where ' +
-                '(("a"."b" = $2) or (123 > "x"."y")) and ("a"."b" = $3) and (123 > "x"."y") ' +
+                '(("a"."b" = $2) or (123 > "x"."y")) and ("a"."b" = $3) and (123 > "x"."y") and ' +
+                '(exists (select "x" from "y")) ' +
                 'group by "x","y" ' +
                 'order by "x" ASC,"z"."r" DESC ' +
                 'offset 5 limit 3');

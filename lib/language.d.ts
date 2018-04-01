@@ -20,8 +20,8 @@ export declare class COMPARISON implements IExpComparison {
     NOT(): this;
 }
 export declare class CONDITIONS {
-    static AND(...conds: any[]): CONDITION;
-    static OR(...conds: any[]): CONDITION;
+    static AND(...conds: (IExpCondition | IExpComparison)[]): CONDITION;
+    static OR(...conds: (IExpCondition | IExpComparison)[]): CONDITION;
 }
 export declare class CONDITION implements IExpCondition {
     type: EExpConditionType;
