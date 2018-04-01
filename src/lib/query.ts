@@ -72,7 +72,7 @@ export enum EExpType {
   UNIONALL = 'union all',
 }
 export type TExpGroup = IExpPath[];
-export type TExpOrder = EExpOrder[];
+export type TExpOrder = IExpOrder[];
 export interface IExp {
   type: EExpType;
   what?: TExpWhat;
@@ -91,14 +91,41 @@ export enum EParsing {
   parsed,
 }
 
+export interface IQuerySelect {
+  exp: IExp;
+  sql: string;
+}
+
 export interface IQueryEventsList extends INodeEventsList {
 }
 
 export type TQuery = IQuery<IQueryEventsList>;
 export interface IQuery<IEL extends IQueryEventsList>
 extends INode<IEL> {
+  _selects: IQuerySelect[];
+  _tables: { [key: string]: string[] };
+
   params: string[];
   addParam(value: string): TParam;
+
+  _key(exp: string): string;
+  _as(a: string, b: string): string;
+
+  TExpData(data: TExpData): string;
+  IExpPath(exp: IExpPath): string;
+  IExpValue(exp: IExpValue): string;
+  TExpContent(exp): string;
+  TExpWhat(exp?: TExpWhat): string;
+  IExpAlias(exp: IExpAlias): string;
+  TExpFrom(exp?: TExpFrom): string;
+  IExpComparison(exp?: IExpComparison): string;
+  IExpCondition(exp?: IExpCondition): string;
+  TExpWhere(exp?: TExpWhere): string;
+  TExpGroup(exp?: TExpGroup): string;
+  TExpOrder(exp?: TExpOrder): string;
+  IExpSelect(exp: IExp): string;
+  IExpUnion(exp: IExp): string;
+  IExp(exp: IExp): string;
 
   IExp(exp: IExp): void;
   IExpSelect(exp: IExp): void;
@@ -108,6 +135,9 @@ export function mixin<T extends TClass<IInstance>>(
   superClass: T,
 ): any {
   return class Query extends superClass {
+    _selects = [];
+    _tables = {};
+
     params = [];
     addParam(data) {
       assert.isString(data);
@@ -115,29 +145,29 @@ export function mixin<T extends TClass<IInstance>>(
       return `$${this.params.length}`;
     }
 
-    _key(exp: string): string {
+    _key(exp) {
       assert.isString(exp);
       return `"${exp}"`;
     }
 
-    _as(a: string, b: string): string {
+    _as(a, b) {
       assert.isString(a);
       assert.isString(a);
       return `${a} as ${b}`;
     }
 
-    TExpData(data): string {
+    TExpData(data) {
       if (_.isNumber(data) || _.isBoolean(data)) return data.toString();
       if (_.isString(data)) return this.addParam(data);
       throw new Error(`Unexpected TExpData: ${data}`);
     }
 
-    IExpPath(exp: IExpPath): string {
+    IExpPath(exp) {
       assert.isObject(exp);
       return `${exp.alias ? `${this._key(exp.alias)}.` : ''}${this._key(exp.field)}`;
     }
 
-    IExpValue(exp: IExpValue) {
+    IExpValue(exp) {
       let value;
       if (_.has(exp, 'data')) value = this.TExpData(exp.data);
       else if (_.has(exp, 'path')) value = this.IExpPath(exp.path);
@@ -153,7 +183,7 @@ export function mixin<T extends TClass<IInstance>>(
       return this.TExpData(exp);
     }
 
-    TExpWhat(exp: TExpWhat) {
+    TExpWhat(exp) {
       if (_.isUndefined(exp)) return '*';
       if (_.isArray(exp)) {
         if (!exp.length) return '*';
@@ -163,19 +193,22 @@ export function mixin<T extends TClass<IInstance>>(
       throw new Error(`Unexpected TExpWrat: ${JSON.stringify(exp)}`);
     }
 
-    IExpAlias(exp: IExpAlias) {
+    IExpAlias(exp) {
       let table;
       if (_.has(exp, 'table')) table = this._key(exp.table);
       else throw new Error(`Unexpected IExpAlias: ${JSON.stringify(exp)}`);
 
+      this._tables[exp.table] = this._tables[exp.table] || [];
+      
       if (_.has(exp, 'as')) {
+        this._tables[exp.table].push(exp.as);
         return this._as(table, this._key(exp.as));
       }
 
       return table;
     }
 
-    TExpFrom(exp: TExpFrom) {
+    TExpFrom(exp) {
       if (_.isArray(exp) && exp.length) {
         return _.map(exp, exp => this.IExpAlias(exp)).join(',');
       }
@@ -183,7 +216,7 @@ export function mixin<T extends TClass<IInstance>>(
       throw new Error(`Unexpected TExpFrom: ${JSON.stringify(exp)}`);
     }
 
-    IExpComparison(exp?: IExpComparison): string {
+    IExpComparison(exp?) {
       assert.isArray(exp.values);
   
       let result = '';
@@ -237,7 +270,7 @@ export function mixin<T extends TClass<IInstance>>(
       return result;
     }
 
-    IExpCondition(exp?: IExpCondition): string {
+    IExpCondition(exp?) {
       assert.include([EExpConditionType.AND, EExpConditionType.OR], exp.type);
       const result = [];
       if (_.isArray(exp.conditions)) {
@@ -250,11 +283,11 @@ export function mixin<T extends TClass<IInstance>>(
       return result.join(` ${exp.type} `);
     }
   
-    TExpWhere(exp?: TExpWhere): string {
+    TExpWhere(exp?) {
       return this.IExpCondition(exp);
     }
   
-    TExpGroup(exp?: TExpGroup): string {
+    TExpGroup(exp?) {
       if (_.isArray(exp) && exp.length) {
         return _.map(exp, exp => this.IExpPath(exp)).join(',');
       }
@@ -262,7 +295,7 @@ export function mixin<T extends TClass<IInstance>>(
       throw new Error(`Unexpected TExpGroup: ${JSON.stringify(exp)}`);
     }
 
-    TExpOrder(exp?: TExpOrder): string {
+    TExpOrder(exp?) {
       if (_.isArray(exp) && exp.length) {
         return _.map(exp, (exp) => {
           const order = exp.order === EExpOrder.DESC ? ' DESC' : ' ASC';
@@ -273,7 +306,7 @@ export function mixin<T extends TClass<IInstance>>(
       throw new Error(`Unexpected TExpOrder: ${JSON.stringify(exp)}`);
     }
 
-    IExpSelect(exp: IExp) {
+    IExpSelect(exp) {
       assert.equal(exp.type, EExpType.SELECT);
 
       let result = `select ${this.TExpWhat(exp.what)} from ${this.TExpFrom(exp.from)}`;
@@ -282,10 +315,13 @@ export function mixin<T extends TClass<IInstance>>(
       if (exp.order) result += ` order by ${this.TExpOrder(exp.order)}`;
       if (_.isNumber(exp.offset)) result += ` offset ${exp.offset}`;
       if (_.isNumber(exp.limit)) result += ` limit ${exp.limit}`;
+
+      this._selects.push({ exp, sql: result });
+
       return result;
     }
 
-    IExpUnion(exp: IExp) {
+    IExpUnion(exp) {
       assert.include([EExpType.UNION, EExpType.UNIONALL], exp.type);
       assert.isArray(exp.selects);
       assert.isOk(exp.selects.length);
@@ -295,7 +331,7 @@ export function mixin<T extends TClass<IInstance>>(
       }).join(` ${exp.type} `);
     }
 
-    IExp(exp: IExp) {
+    IExp(exp) {
       assert.isObject(exp);
       if (exp.type === EExpType.SELECT) {
         return this.IExpSelect(exp);

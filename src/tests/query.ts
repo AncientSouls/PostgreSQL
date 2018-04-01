@@ -1,7 +1,7 @@
 import { assert } from 'chai';
 import * as _ from 'lodash';
 
-import { Query } from '../lib/query';
+import { Query, EExpOrder } from '../lib/query';
 import * as l from '../lib/language';
 const {
   SELECT,
@@ -14,7 +14,9 @@ const {
 } = l;
 const { DATA } = V;
 
-const _t = n => `(select * from "${n}")`;
+const _t = (f, n) => `select ${f} from ${n}`;
+
+const sel = (x, y) => SELECT(...(x ? [PATH(x)] : [])).FROM({ table: y });
 
 export default function () {
   describe('Query:', () => {
@@ -39,17 +41,17 @@ export default function () {
           q.IExpValue(PATH('a').VALUE().AS('d')),
           q.IExpValue(PATH('a', 'b').VALUE()),
           q.IExpValue(PATH('a', 'b').VALUE().AS('e')),
-          q.IExpValue(SELECT(PATH('x')).FROM({ table: 'y' }).VALUE()),
-          q.IExpValue(SELECT(PATH('x')).FROM({ table: 'y' }).VALUE().AS('f')),
+          q.IExpValue(sel('x','y').VALUE()),
+          q.IExpValue(sel('x','y').VALUE().AS('f')),
           q.IExpValue(UNIONALL(
-            SELECT().FROM({ table: 'a' }),
-            SELECT().FROM({ table: 'b' }),
-            SELECT().FROM({ table: 'c' }),
+            sel(null, 'a'),
+            sel(null, 'b'),
+            sel(null, 'c'),
           ).VALUE()),
           q.IExpValue(UNIONALL(
-            SELECT().FROM({ table: 'a' }),
-            SELECT().FROM({ table: 'b' }),
-            SELECT().FROM({ table: 'c' }),
+            sel(null, 'a'),
+            sel(null, 'b'),
+            sel(null, 'c'),
           ).VALUE().AS('g')),
         ],
         [
@@ -58,11 +60,21 @@ export default function () {
           `$1`, `$2 as "c"`,
           `"a"`, `"a" as "d"`,
           `"a"."b"`, `"a"."b" as "e"`,
-          `(select "x" from "y")`, `(select "x" from "y") as "f"`,
-          `(${_t('a')} union all ${_t('b')} union all ${_t('c')})`,
-          `(${_t('a')} union all ${_t('b')} union all ${_t('c')}) as "g"`,
+          `(${_t('"x"', '"y"')})`, `(${_t('"x"', '"y"')}) as "f"`,
+          `((${_t('*','"a"')}) union all (${_t('*','"b"')}) union all (${_t('*','"c"')}))`,
+          `((${_t('*','"a"')}) union all (${_t('*','"b"')}) union all (${_t('*','"c"')})) as "g"`,
         ].join(','),
       );
+      assert.deepEqual(q._selects, [
+        { exp: sel('x','y'), sql: _t('"x"', '"y"') },
+        { exp: sel('x','y'), sql: _t('"x"', '"y"') },
+        { exp: sel(null,'a'), sql: _t('*', '"a"') },
+        { exp: sel(null,'b'), sql: _t('*', '"b"') },
+        { exp: sel(null,'c'), sql: _t('*', '"c"') },
+        { exp: sel(null,'a'), sql: _t('*', '"a"') },
+        { exp: sel(null,'b'), sql: _t('*', '"b"') },
+        { exp: sel(null,'c'), sql: _t('*', '"c"') },
+      ]);
     });
     it('IExpAlias', () => {
       const q = new Query();
@@ -85,17 +97,17 @@ export default function () {
           PATH('a').VALUE().AS('d'),
           PATH('a', 'b').VALUE(),
           PATH('a', 'b').VALUE().AS('e'),
-          SELECT(PATH('x')).FROM({ table: 'y' }).VALUE(),
-          SELECT(PATH('x')).FROM({ table: 'y' }).VALUE().AS('f'),
+          sel('x','y').VALUE(),
+          sel('x','y').VALUE().AS('f'),
           UNIONALL(
-            SELECT().FROM({ table: 'a' }),
-            SELECT().FROM({ table: 'b' }),
-            SELECT().FROM({ table: 'c' }),
+            sel(null, 'a'),
+            sel(null, 'b'),
+            sel(null, 'c'),
           ).VALUE(),
           UNIONALL(
-            SELECT().FROM({ table: 'a' }),
-            SELECT().FROM({ table: 'b' }),
-            SELECT().FROM({ table: 'c' }),
+            sel(null, 'a'),
+            sel(null, 'b'),
+            sel(null, 'c'),
           ).VALUE().AS('g'),
         ]),
         [
@@ -104,9 +116,9 @@ export default function () {
           `$1`, `$2 as "c"`,
           `"a"`, `"a" as "d"`,
           `"a"."b"`, `"a"."b" as "e"`,
-          `(select "x" from "y")`, `(select "x" from "y") as "f"`,
-          `(${_t('a')} union all ${_t('b')} union all ${_t('c')})`,
-          `(${_t('a')} union all ${_t('b')} union all ${_t('c')}) as "g"`,
+          `(${_t('"x"', '"y"')})`, `(${_t('"x"', '"y"')}) as "f"`,
+          `((${_t('*','"a"')}) union all (${_t('*','"b"')}) union all (${_t('*','"c"')}))`,
+          `((${_t('*','"a"')}) union all (${_t('*','"b"')}) union all (${_t('*','"c"')})) as "g"`,
         ].join(','),
       );
       assert.deepEqual(q.params, ['123','123']);
@@ -173,7 +185,7 @@ export default function () {
     it('TExpOrder', () => {
       const q = new Query();
       assert.equal(
-        q.TExpOrder([{ field: 'a' }, { alias: 'b', field: 'c', order: 'desc' }]),
+        q.TExpOrder([{ field: 'a' }, { alias: 'b', field: 'c', order: EExpOrder.DESC }]),
         '"a" ASC,"b"."c" DESC',
       );
     });
@@ -191,7 +203,7 @@ export default function () {
               ),
               EQ(PATH('a', 'b'), DATA('a')),
               GT(DATA(123),PATH('x', 'y')),
-              EXISTS(SELECT(PATH('x')).FROM({ table: 'y' })),
+              EXISTS(sel('x','y')),
             ),
           )
           .GROUP(PATH('x'), PATH('y'))
@@ -200,7 +212,7 @@ export default function () {
         ),
         'select $1,"x"."y" from "a" where ' +
         '(("a"."b" = $2) or (123 > "x"."y")) and ("a"."b" = $3) and (123 > "x"."y") and ' +
-        '(exists (select "x" from "y")) ' +
+        `(exists (${_t('"x"', '"y"')})) ` +
         'group by "x","y" ' +
         'order by "x" ASC,"z"."r" DESC ' +
         'offset 5 limit 3',
@@ -208,16 +220,15 @@ export default function () {
     });
     it('IExpUnion', () => {
       const q = new Query();
-      const t = n => `(select * from "${n}")`;
       assert.equal(
         q.IExp(
           UNION(
-            SELECT().FROM({ table: 'a' }),
-            SELECT().FROM({ table: 'b' }),
-            SELECT().FROM({ table: 'c' }),
+            sel(null, 'a'),
+            sel(null, 'b'),
+            sel(null, 'c'),
           ),
         ),
-        `${t('a')} union ${t('b')} union ${t('c')}`,
+        `(${_t('*','"a"')}) union (${_t('*','"b"')}) union (${_t('*','"c"')})`,
       );
     });
     it('IExpUnionall', () => {
@@ -225,12 +236,12 @@ export default function () {
       assert.equal(
         q.IExp(
           UNIONALL(
-            SELECT().FROM({ table: 'a' }),
-            SELECT().FROM({ table: 'b' }),
-            SELECT().FROM({ table: 'c' }),
+            sel(null, 'a'),
+            sel(null, 'b'),
+            sel(null, 'c'),
           ),
         ),
-        `${_t('a')} union all ${_t('b')} union all ${_t('c')}`,
+        `(${_t('*','"a"')}) union all (${_t('*','"b"')}) union all (${_t('*','"c"')})`,
       );
     });
   });

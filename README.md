@@ -1,6 +1,6 @@
 # Ancient PostgreSQL
 
-:elephant: Tracking, subscribing and restricted queries language for PostgreSQL.
+:elephant: Tracking, subscribing and restrictable queries language for PostgreSQL.
 
 [![NPM](https://img.shields.io/npm/v/ancient-postgresql.svg)](https://www.npmjs.com/package/ancient-postgresql)
 [![Build Status](https://travis-ci.org/AncientSouls/PostgreSQL.svg?branch=master)](https://travis-ci.org/AncientSouls/PostgreSQL)
