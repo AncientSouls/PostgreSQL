@@ -79,6 +79,13 @@ export default function () {
         .WHERE(GT(PATH('value'), 2), LT(PATH('value'), 8))
         .ORDER(PATH('value'), true).LIMIT(2),
       );
+
+      const q2 = new LiveQuery();
+      q2.IExp(
+        SELECT().FROM('documents')
+        .WHERE(GT(PATH('value'), 2), LT(PATH('value'), 8))
+        .ORDER(PATH('value'), false).LIMIT(2),
+      );
       
       tracker.init(t.track({ query: q1 }));
 
@@ -87,6 +94,77 @@ export default function () {
       await client.query(`insert into documents (value) values ${_.times(9, t => `(${t + 1})`)};`);
       
       await tracker.subscribe();
+
+      await delay(100);
+      
+      assert.deepEqual(tracker.ids, [3,4]);
+      assert.deepEqual(tracker.memory, {
+        3: { id: 3, value: 3 },
+        4: { id: 4, value: 4 },
+      });
+
+      await client.query(`update documents set value = 6 where id = 3`);
+
+      await delay(100);
+      
+      assert.deepEqual(tracker.ids, [4,5]);
+      assert.deepEqual(tracker.memory, {
+        4: { id: 4, value: 4 },
+        5: { id: 5, value: 5 },
+      });
+
+      await client.query(`update documents set value = 3 where id = 5`);
+
+      await delay(100);
+      
+      assert.deepEqual(tracker.ids, [5,4]);
+      assert.deepEqual(tracker.memory, {
+        4: { id: 4, value: 4 },
+        5: { id: 5, value: 3 },
+      });
+
+      await client.query(`update documents set value = 5 where id = 5`);
+
+      await delay(100);
+      
+      assert.deepEqual(tracker.ids, [4,5]);
+      assert.deepEqual(tracker.memory, {
+        4: { id: 4, value: 4 },
+        5: { id: 5, value: 5 },
+      });
+
+      await tracker.unsubscribe();
+      
+      assert.deepEqual(tracker.ids, [4,5]);
+      assert.deepEqual(tracker.memory, {
+        4: { id: 4, value: 4 },
+        5: { id: 5, value: 5 },
+      });
+
+      tracker.init(t.track(q2));
+
+      await tracker.subscribe();
+      
+      assert.deepEqual(tracker.ids, [7,3]);
+      assert.deepEqual(tracker.memory, {
+        7: { id: 7, value: 7 },
+        3: { id: 3, value: 6 },
+      });
+
+      await tracker.unsubscribe();
+      tracker.destroy();
+      
+      assert.deepEqual(tracker.ids, [7,3]);
+      assert.deepEqual(tracker.memory, {
+        7: { id: 7, value: 7 },
+        3: { id: 3, value: 6 },
+      });
+
+      tracker.clean();
+      
+      assert.deepEqual(tracker.ids, []);
+      assert.deepEqual(tracker.memory, {});
+
       await delay(100);
 
       await t.stop();

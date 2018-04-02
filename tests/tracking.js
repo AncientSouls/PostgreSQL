@@ -8,6 +8,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const chai_1 = require("chai");
 const _ = require("lodash");
 const pg_1 = require("pg");
 const live_triggers_1 = require("../lib/live-triggers");
@@ -32,8 +33,8 @@ function default_1() {
             client = new pg_1.Client({
                 user: 'postgres',
                 host: 'localhost',
-                database: 'tests',
-                password: 'your_password',
+                database: 'postgres',
+                password: 'postgres',
                 port: 5432,
             });
             yield client.connect();
@@ -61,10 +62,64 @@ function default_1() {
             q1.IExp(SELECT().FROM('documents')
                 .WHERE(GT(PATH('value'), 2), LT(PATH('value'), 8))
                 .ORDER(PATH('value'), true).LIMIT(2));
+            const q2 = new live_query_1.LiveQuery();
+            q2.IExp(SELECT().FROM('documents')
+                .WHERE(GT(PATH('value'), 2), LT(PATH('value'), 8))
+                .ORDER(PATH('value'), false).LIMIT(2));
             tracker.init(t.track({ query: q1 }));
             yield delay(100);
             yield client.query(`insert into documents (value) values ${_.times(9, t => `(${t + 1})`)};`);
             yield tracker.subscribe();
+            yield delay(100);
+            chai_1.assert.deepEqual(tracker.ids, [3, 4]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                3: { id: 3, value: 3 },
+                4: { id: 4, value: 4 },
+            });
+            yield client.query(`update documents set value = 6 where id = 3`);
+            yield delay(100);
+            chai_1.assert.deepEqual(tracker.ids, [4, 5]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                4: { id: 4, value: 4 },
+                5: { id: 5, value: 5 },
+            });
+            yield client.query(`update documents set value = 3 where id = 5`);
+            yield delay(100);
+            chai_1.assert.deepEqual(tracker.ids, [5, 4]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                4: { id: 4, value: 4 },
+                5: { id: 5, value: 3 },
+            });
+            yield client.query(`update documents set value = 5 where id = 5`);
+            yield delay(100);
+            chai_1.assert.deepEqual(tracker.ids, [4, 5]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                4: { id: 4, value: 4 },
+                5: { id: 5, value: 5 },
+            });
+            yield tracker.unsubscribe();
+            chai_1.assert.deepEqual(tracker.ids, [4, 5]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                4: { id: 4, value: 4 },
+                5: { id: 5, value: 5 },
+            });
+            tracker.init(t.track(q2));
+            yield tracker.subscribe();
+            chai_1.assert.deepEqual(tracker.ids, [7, 3]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                7: { id: 7, value: 7 },
+                3: { id: 3, value: 6 },
+            });
+            yield tracker.unsubscribe();
+            tracker.destroy();
+            chai_1.assert.deepEqual(tracker.ids, [7, 3]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                7: { id: 7, value: 7 },
+                3: { id: 3, value: 6 },
+            });
+            tracker.clean();
+            chai_1.assert.deepEqual(tracker.ids, []);
+            chai_1.assert.deepEqual(tracker.memory, {});
             yield delay(100);
             yield t.stop();
         }));

@@ -57,8 +57,10 @@ export function mixin<T extends TClass<IInstance>>(
     async start(client, liveTriggers) {
       this.client = client;
       this.liveTriggers = liveTriggers;
+      console.log('LISTEN');
       await this.client.query(`LISTEN "${this.id}";`);
       client.on('notification', (n) => {
+        console.log(n);
         if (n.channel === this.id) {
           const json = JSON.parse(n.payload);
           this.override(this.items[this.liveQueryIds[json.query]]);
@@ -68,6 +70,7 @@ export function mixin<T extends TClass<IInstance>>(
     }
 
     async stop() {
+      console.log('LISTEN');
       this.client.query(`UNLISTEN "${this.id}";`);
       await super.stop();
     }
