@@ -20,7 +20,7 @@ const delay = t => new Promise(resolve => setTimeout(resolve, t));
 const subscribing = t => _.times(t, t => `LISTEN ch${t + 1}; `).join('');
 const unsubscribing = t => _.times(t, t => `UNLISTEN ch${t + 1}; `).join('');
 function default_1() {
-    describe('LiveTriggers:', () => {
+    describe.skip('LiveTriggers:', () => {
         let client;
         const querysCount = 3;
         const liveTriggers = new live_triggers_1.LiveTriggers();

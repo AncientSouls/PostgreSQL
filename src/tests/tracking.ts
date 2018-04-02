@@ -88,7 +88,6 @@ export default function () {
       
       await tracker.subscribe();
       await delay(100);
-      console.log(await client.query('select * from ancient_postgresql_live_queries'));
 
       await t.stop();
     });

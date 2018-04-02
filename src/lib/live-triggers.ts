@@ -68,9 +68,11 @@ export function mixin<T extends TClass<IInstance>>(
                 from (' || ${this.liveQueriesTableName}.query|| E') as q
                   where q.table = \\'' || TG_TABLE_NAME || E'\\' and
                   q.id = ' || NEW.id, ' union ') || ';' into query from ${this.liveQueriesTableName};
+            if query is not null then
               for current in execute query loop
                 PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "query": ' || current.queryID || ', "event": "' || TG_OP || '"}'::text );
               end loop;
+            end if;
             return new;
           end;
         $$ LANGUAGE plpgsql;

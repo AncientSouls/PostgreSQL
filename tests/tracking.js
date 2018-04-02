@@ -32,8 +32,8 @@ function default_1() {
             client = new pg_1.Client({
                 user: 'postgres',
                 host: 'localhost',
-                database: 'postgres',
-                password: 'postgres',
+                database: 'tests',
+                password: 'your_password',
                 port: 5432,
             });
             yield client.connect();
@@ -66,7 +66,6 @@ function default_1() {
             yield client.query(`insert into documents (value) values ${_.times(9, t => `(${t + 1})`)};`);
             yield tracker.subscribe();
             yield delay(100);
-            console.log(yield client.query('select * from ancient_postgresql_live_queries'));
             yield t.stop();
         }));
     });
