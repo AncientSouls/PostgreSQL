@@ -18,11 +18,11 @@ const { SELECT, CONDITIONS: { AND, OR }, COMPARISONS: { EQ, NOT, GT, GTE, LT, LT
 const { DATA } = V;
 const delay = t => new Promise(resolve => setTimeout(resolve, t));
 const subscribing = t => _.times(t, t => `LISTEN ch${t + 1}; `).join('');
-const unsubscribing = t => _.times(t, t => `LISTEN ch${t + 1}; `).join('');
+const unsubscribing = t => _.times(t, t => `UNLISTEN ch${t + 1}; `).join('');
 function default_1() {
     describe('LiveTriggers:', () => {
         let client;
-        const trackingsCount = 3;
+        const querysCount = 3;
         const liveTriggers = new live_triggers_1.LiveTriggers();
         const cleaning = () => __awaiter(this, void 0, void 0, function* () {
             yield client.query(liveTriggers.dropTriggers('documents'));
@@ -48,7 +48,7 @@ function default_1() {
           value int default 0
         );`);
             yield client.query(liveTriggers.createTriggers('documents'));
-            yield client.query(`insert into ${liveTriggers.liveQueriesTableName} (query, channel) values ${_.times(trackingsCount, t => `($${t + 1},'ch${t + 1}')`)};`, _.times(trackingsCount, t => live_query_1.liveQuery(SELECT()
+            yield client.query(`insert into ${liveTriggers.liveQueriesTableName} (query, channel) values ${_.times(querysCount, t => `($${t + 1},'ch${t + 1}')`)};`, _.times(querysCount, t => live_query_1.liveQuery(SELECT()
                 .FROM({ table: 'documents' })
                 .ORDER(PATH('id'))
                 .OFFSET(t * 2).LIMIT(3))));
@@ -58,75 +58,75 @@ function default_1() {
             yield client.end();
         }));
         it('insert', () => __awaiter(this, void 0, void 0, function* () {
-            yield client.query(subscribing(trackingsCount));
+            yield client.query(subscribing(querysCount));
             const notifications = [];
             client.on('notification', msg => notifications.push(JSON.parse(msg.payload)));
             yield client.query(`insert into documents (id) values ${_.times(9, t => `(DEFAULT)`)}`);
             yield delay(100);
             chai_1.assert.deepEqual([
-                ..._.filter(notifications, n => n.tracking === 1),
-                ..._.filter(notifications, n => n.tracking === 2),
-                ..._.filter(notifications, n => n.tracking === 3),
+                ..._.filter(notifications, n => n.query === 1),
+                ..._.filter(notifications, n => n.query === 2),
+                ..._.filter(notifications, n => n.query === 3),
             ], [
-                ..._.times(3, n => ({ table: 'documents', id: n + 1, tracking: 1, event: 'INSERT' })),
-                ..._.times(3, n => ({ table: 'documents', id: n + 3, tracking: 2, event: 'INSERT' })),
-                ..._.times(3, n => ({ table: 'documents', id: n + 5, tracking: 3, event: 'INSERT' })),
+                ..._.times(3, n => ({ table: 'documents', id: n + 1, query: 1, event: 'INSERT' })),
+                ..._.times(3, n => ({ table: 'documents', id: n + 3, query: 2, event: 'INSERT' })),
+                ..._.times(3, n => ({ table: 'documents', id: n + 5, query: 3, event: 'INSERT' })),
             ]);
-            yield client.query(unsubscribing(trackingsCount));
+            yield client.query(unsubscribing(querysCount));
         }));
         it('update', () => __awaiter(this, void 0, void 0, function* () {
             const notifications = [];
             client.on('notification', msg => notifications.push(JSON.parse(msg.payload)));
             yield client.query(`insert into documents (id) values ${_.times(9, t => `(DEFAULT)`)}`);
             yield delay(100);
-            yield client.query(subscribing(trackingsCount));
+            yield client.query(subscribing(querysCount));
             yield client.query(`${_.times(9, t => `update documents set value = value + 1 where id = ${t + 1}; `).join('')}`);
             yield delay(100);
             chai_1.assert.deepEqual([
-                ..._.filter(notifications, n => n.tracking === 1),
-                ..._.filter(notifications, n => n.tracking === 2),
-                ..._.filter(notifications, n => n.tracking === 3),
+                ..._.filter(notifications, n => n.query === 1),
+                ..._.filter(notifications, n => n.query === 2),
+                ..._.filter(notifications, n => n.query === 3),
             ], [
-                ..._.times(3, n => ({ table: 'documents', id: n + 1, tracking: 1, event: 'UPDATE' })),
-                ..._.times(3, n => ({ table: 'documents', id: n + 3, tracking: 2, event: 'UPDATE' })),
-                ..._.times(3, n => ({ table: 'documents', id: n + 5, tracking: 3, event: 'UPDATE' })),
+                ..._.times(3, n => ({ table: 'documents', id: n + 1, query: 1, event: 'UPDATE' })),
+                ..._.times(3, n => ({ table: 'documents', id: n + 3, query: 2, event: 'UPDATE' })),
+                ..._.times(3, n => ({ table: 'documents', id: n + 5, query: 3, event: 'UPDATE' })),
             ]);
-            yield client.query(unsubscribing(trackingsCount));
+            yield client.query(unsubscribing(querysCount));
         }));
         it('delete', () => __awaiter(this, void 0, void 0, function* () {
             const notifications = [];
             client.on('notification', msg => notifications.push(JSON.parse(msg.payload)));
             yield client.query(`insert into documents (id) values ${_.times(9, t => `(DEFAULT)`)}`);
             yield delay(100);
-            yield client.query(subscribing(trackingsCount));
+            yield client.query(subscribing(querysCount));
             yield client.query(`${_.times(9, t => `delete from documents where id = ${9 - t}; `).join('')}`);
             yield delay(100);
             chai_1.assert.deepEqual(notifications, [
-                { table: 'documents', id: 7, tracking: 3, event: 'DELETE' },
-                { table: 'documents', id: 6, tracking: 3, event: 'DELETE' },
-                { table: 'documents', id: 5, tracking: 3, event: 'DELETE' },
-                { table: 'documents', id: 5, tracking: 2, event: 'DELETE' },
-                { table: 'documents', id: 4, tracking: 2, event: 'DELETE' },
-                { table: 'documents', id: 3, tracking: 2, event: 'DELETE' },
-                { table: 'documents', id: 3, tracking: 1, event: 'DELETE' },
-                { table: 'documents', id: 2, tracking: 1, event: 'DELETE' },
-                { table: 'documents', id: 1, tracking: 1, event: 'DELETE' },
+                { table: 'documents', id: 7, query: 3, event: 'DELETE' },
+                { table: 'documents', id: 6, query: 3, event: 'DELETE' },
+                { table: 'documents', id: 5, query: 3, event: 'DELETE' },
+                { table: 'documents', id: 5, query: 2, event: 'DELETE' },
+                { table: 'documents', id: 4, query: 2, event: 'DELETE' },
+                { table: 'documents', id: 3, query: 2, event: 'DELETE' },
+                { table: 'documents', id: 3, query: 1, event: 'DELETE' },
+                { table: 'documents', id: 2, query: 1, event: 'DELETE' },
+                { table: 'documents', id: 1, query: 1, event: 'DELETE' },
             ]);
-            yield client.query(unsubscribing(trackingsCount));
+            yield client.query(unsubscribing(querysCount));
         }));
         it('truncate', () => __awaiter(this, void 0, void 0, function* () {
             const notifications = [];
             client.on('notification', msg => notifications.push(JSON.parse(msg.payload)));
             yield client.query(`insert into documents (id) values ${_.times(9, t => `(DEFAULT)`)}`);
             yield delay(100);
-            yield client.query(subscribing(trackingsCount));
+            yield client.query(subscribing(querysCount));
             yield delay(100);
             yield client.query(`truncate documents`);
             yield delay(100);
             chai_1.assert.deepEqual(notifications, [
-                ..._.times(3, n => ({ table: 'documents', tracking: 3 - n, event: 'TRUNCATE' })),
+                ..._.times(3, n => ({ table: 'documents', query: 3 - n, event: 'TRUNCATE' })),
             ]);
-            yield client.query(unsubscribing(trackingsCount));
+            yield client.query(unsubscribing(querysCount));
         }));
     });
 }

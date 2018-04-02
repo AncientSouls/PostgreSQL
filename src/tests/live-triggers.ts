@@ -20,12 +20,12 @@ const { DATA } = V;
 const delay = t => new Promise(resolve => setTimeout(resolve, t));
 
 const subscribing = t => _.times(t, t => `LISTEN ch${t + 1}; `).join('');
-const unsubscribing = t => _.times(t, t => `LISTEN ch${t + 1}; `).join('');
+const unsubscribing = t => _.times(t, t => `UNLISTEN ch${t + 1}; `).join('');
 
 export default function () {
   describe('LiveTriggers:', () => {
     let client;
-    const trackingsCount = 3;
+    const querysCount = 3;
     const liveTriggers = new LiveTriggers();
 
     const cleaning = async () => {
@@ -62,9 +62,9 @@ export default function () {
 
       await client.query(
         `insert into ${liveTriggers.liveQueriesTableName} (query, channel) values ${
-          _.times(trackingsCount, t => `($${t + 1},'ch${t + 1}')`)
+          _.times(querysCount, t => `($${t + 1},'ch${t + 1}')`)
         };`,
-        _.times(trackingsCount, t => liveQuery(
+        _.times(querysCount, t => liveQuery(
           SELECT()
           .FROM({ table: 'documents' })
           .ORDER(PATH('id'))
@@ -79,7 +79,7 @@ export default function () {
     });
 
     it('insert', async () => {
-      await client.query(subscribing(trackingsCount));
+      await client.query(subscribing(querysCount));
       const notifications = [];
       client.on('notification', msg => notifications.push(JSON.parse(msg.payload)));
       await client.query(`insert into documents (id) values ${_.times(9, t => `(DEFAULT)`)}`);
@@ -88,18 +88,18 @@ export default function () {
 
       assert.deepEqual(
         [
-          ..._.filter(notifications, n => n.tracking === 1),
-          ..._.filter(notifications, n => n.tracking === 2),
-          ..._.filter(notifications, n => n.tracking === 3),
+          ..._.filter(notifications, n => n.query === 1),
+          ..._.filter(notifications, n => n.query === 2),
+          ..._.filter(notifications, n => n.query === 3),
         ],
         [
-          ..._.times(3, n => ({ table: 'documents', id: n + 1, tracking: 1, event: 'INSERT' })),
-          ..._.times(3, n => ({ table: 'documents', id: n + 3, tracking: 2, event: 'INSERT' })),
-          ..._.times(3, n => ({ table: 'documents', id: n + 5, tracking: 3, event: 'INSERT' })),
+          ..._.times(3, n => ({ table: 'documents', id: n + 1, query: 1, event: 'INSERT' })),
+          ..._.times(3, n => ({ table: 'documents', id: n + 3, query: 2, event: 'INSERT' })),
+          ..._.times(3, n => ({ table: 'documents', id: n + 5, query: 3, event: 'INSERT' })),
         ],
       );
       
-      await client.query(unsubscribing(trackingsCount));
+      await client.query(unsubscribing(querysCount));
     });
     
     it('update', async () => {
@@ -109,7 +109,7 @@ export default function () {
 
       await delay(100);
 
-      await client.query(subscribing(trackingsCount));
+      await client.query(subscribing(querysCount));
       
       await client.query(`${_.times(9, t => `update documents set value = value + 1 where id = ${t + 1}; `).join('')}`);
 
@@ -117,18 +117,18 @@ export default function () {
 
       assert.deepEqual(
         [
-          ..._.filter(notifications, n => n.tracking === 1),
-          ..._.filter(notifications, n => n.tracking === 2),
-          ..._.filter(notifications, n => n.tracking === 3),
+          ..._.filter(notifications, n => n.query === 1),
+          ..._.filter(notifications, n => n.query === 2),
+          ..._.filter(notifications, n => n.query === 3),
         ],
         [
-          ..._.times(3, n => ({ table: 'documents', id: n + 1, tracking: 1, event: 'UPDATE' })),
-          ..._.times(3, n => ({ table: 'documents', id: n + 3, tracking: 2, event: 'UPDATE' })),
-          ..._.times(3, n => ({ table: 'documents', id: n + 5, tracking: 3, event: 'UPDATE' })),
+          ..._.times(3, n => ({ table: 'documents', id: n + 1, query: 1, event: 'UPDATE' })),
+          ..._.times(3, n => ({ table: 'documents', id: n + 3, query: 2, event: 'UPDATE' })),
+          ..._.times(3, n => ({ table: 'documents', id: n + 5, query: 3, event: 'UPDATE' })),
         ],
       );
 
-      await client.query(unsubscribing(trackingsCount));
+      await client.query(unsubscribing(querysCount));
     });
     
     it('delete', async () => {
@@ -138,7 +138,7 @@ export default function () {
       
       await delay(100);
 
-      await client.query(subscribing(trackingsCount));
+      await client.query(subscribing(querysCount));
       
       await client.query(`${_.times(9, t => `delete from documents where id = ${9 - t}; `).join('')}`);
 
@@ -147,19 +147,19 @@ export default function () {
       assert.deepEqual(
         notifications,
         [ 
-          { table: 'documents', id: 7, tracking: 3, event: 'DELETE' },
-          { table: 'documents', id: 6, tracking: 3, event: 'DELETE' },
-          { table: 'documents', id: 5, tracking: 3, event: 'DELETE' },
-          { table: 'documents', id: 5, tracking: 2, event: 'DELETE' },
-          { table: 'documents', id: 4, tracking: 2, event: 'DELETE' },
-          { table: 'documents', id: 3, tracking: 2, event: 'DELETE' },
-          { table: 'documents', id: 3, tracking: 1, event: 'DELETE' },
-          { table: 'documents', id: 2, tracking: 1, event: 'DELETE' },
-          { table: 'documents', id: 1, tracking: 1, event: 'DELETE' },
+          { table: 'documents', id: 7, query: 3, event: 'DELETE' },
+          { table: 'documents', id: 6, query: 3, event: 'DELETE' },
+          { table: 'documents', id: 5, query: 3, event: 'DELETE' },
+          { table: 'documents', id: 5, query: 2, event: 'DELETE' },
+          { table: 'documents', id: 4, query: 2, event: 'DELETE' },
+          { table: 'documents', id: 3, query: 2, event: 'DELETE' },
+          { table: 'documents', id: 3, query: 1, event: 'DELETE' },
+          { table: 'documents', id: 2, query: 1, event: 'DELETE' },
+          { table: 'documents', id: 1, query: 1, event: 'DELETE' },
         ],
       );
 
-      await client.query(unsubscribing(trackingsCount));
+      await client.query(unsubscribing(querysCount));
     });
     
     it('truncate', async () => {
@@ -169,7 +169,7 @@ export default function () {
       
       await delay(100);
 
-      await client.query(subscribing(trackingsCount));
+      await client.query(subscribing(querysCount));
       
       await delay(100);
       
@@ -180,11 +180,11 @@ export default function () {
       assert.deepEqual(
         notifications,
         [
-          ..._.times(3, n => ({ table: 'documents', tracking: 3 - n, event: 'TRUNCATE' })),
+          ..._.times(3, n => ({ table: 'documents', query: 3 - n, event: 'TRUNCATE' })),
         ],
       );
       
-      await client.query(unsubscribing(trackingsCount));
+      await client.query(unsubscribing(querysCount));
     });
   });
 }

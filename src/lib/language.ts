@@ -6,6 +6,7 @@ import {
   EExpType,
   TExpWhat,
   TExpFrom,
+  IExpAlias,
   TExpWhere,
   IExpValue,
   IExpComparison,
@@ -19,6 +20,7 @@ import {
 const toValue = (x) => {
   if (x instanceof ExpPath) return x.VALUE();
   if (x instanceof ExpSelect) return x.VALUE();
+  if (_.isNumber(x) || _.isString(x) || _.isBoolean(x)) return VALUES.DATA(x);
   return x;
 };
 
@@ -159,13 +161,20 @@ export class ExpSelect implements IExp {
     return this;
   }
   from = [];
-  FROM(...from: TExpFrom) {
-    this.from = from;
+  FROM(...from: (IExpAlias|string)[]) {
+    this.from = _.map(from, (f) => {
+      if (_.isString(f)) return { table: f };
+      return f;
+    });
     return this;
   }
   where = undefined;
-  WHERE(where: TExpWhere) {
-    this.where = where;
+  WHERE(...where: any[]) {
+    if (where.length === 1 && where[0] instanceof CONDITION) {
+      this.where = where[0];
+    } else {
+      this.where = new CONDITION(EExpConditionType.AND, where);
+    }
     return this;
   }
   group = undefined;

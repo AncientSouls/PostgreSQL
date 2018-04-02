@@ -121,6 +121,7 @@ export interface IQuery<IEL extends IQueryEventsList> extends INode<IEL> {
     IExpSelect(exp: IExp): string;
     IExpUnion(exp: IExp): string;
     IExp(exp: IExp): string;
+    createQuery(): string;
 }
 export declare const ExpDataStringRegexp: RegExp;
 export declare function mixin<T extends TClass<IInstance>>(superClass: T): any;

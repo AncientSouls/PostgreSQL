@@ -140,6 +140,8 @@ extends INode<IEL> {
   IExpSelect(exp: IExp): string;
   IExpUnion(exp: IExp): string;
   IExp(exp: IExp): string;
+
+  createQuery(): string;
 }
 
 export const ExpDataStringRegexp = /^[a-zA-Zа-яА-Я0-9]*$/; 
@@ -392,6 +394,10 @@ export function mixin<T extends TClass<IInstance>>(
         return this.IExpUnion(exp);
       }
       throw new Error(`Unexpected IExp.type: ${exp.type}`);
+    }
+
+    createQuery() {
+      return _.map(this._selects, select => `(${select.sql})`).join(` union all `);
     }
   };
 }

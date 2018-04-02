@@ -64,12 +64,12 @@ export function mixin<T extends TClass<IInstance>>(
             query text;
           begin
             select string_agg(
-              E'select \\''||${this.liveQueriesTableName}.channel::text||E'\\' as channel, \\''||${this.liveQueriesTableName}.id::text||E'\\' as trackingID
+              E'select \\''||${this.liveQueriesTableName}.channel::text||E'\\' as channel, \\''||${this.liveQueriesTableName}.id::text||E'\\' as queryID
                 from (' || ${this.liveQueriesTableName}.query|| E') as q
                   where q.table = \\'' || TG_TABLE_NAME || E'\\' and
                   q.id = ' || NEW.id, ' union ') || ';' into query from ${this.liveQueriesTableName};
               for current in execute query loop
-                PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "tracking": ' || current.trackingID || ', "event": "' || TG_OP || '"}'::text );
+                PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "query": ' || current.queryID || ', "event": "' || TG_OP || '"}'::text );
               end loop;
             return new;
           end;
@@ -91,12 +91,12 @@ export function mixin<T extends TClass<IInstance>>(
             query text;
           begin
             select string_agg(
-              E'select \\''||${this.liveQueriesTableName}.channel::text||E'\\' as channel, \\''||${this.liveQueriesTableName}.id::text||E'\\' as trackingID 
+              E'select \\''||${this.liveQueriesTableName}.channel::text||E'\\' as channel, \\''||${this.liveQueriesTableName}.id::text||E'\\' as queryID 
                 from (' || ${this.liveQueriesTableName}.query|| E') as q 
                   where q.table = \\'' || TG_TABLE_NAME || E'\\' and 
                   q.id = ' || OLD.id, ' union ') || ';' into query from ${this.liveQueriesTableName};
               for current in EXECUTE query LOOP
-                PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME || '", "id": ' || OLD.id || ', "tracking": ' || current.trackingID || ', "event": "' || TG_OP || '"}'::text );
+                PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME || '", "id": ' || OLD.id || ', "query": ' || current.queryID || ', "event": "' || TG_OP || '"}'::text );
               end LOOP;
             return old;
           end;
@@ -118,11 +118,11 @@ export function mixin<T extends TClass<IInstance>>(
             query text;
           begin
             select string_agg(
-              E'select \\''||${this.liveQueriesTableName}.channel::text||E'\\' as channel, \\''||${this.liveQueriesTableName}.id::text||E'\\' as trackingID 
+              E'select \\''||${this.liveQueriesTableName}.channel::text||E'\\' as channel, \\''||${this.liveQueriesTableName}.id::text||E'\\' as queryID 
                 from (' || ${this.liveQueriesTableName}.query|| E') as q 
                   where q.table = \\'' || TG_TABLE_NAME || E'\\'', ' union ') || ';' into query from ${this.liveQueriesTableName};
               for current in EXECUTE query LOOP
-                PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME ||'", "tracking": ' || current.trackingID || ', "event": "' || TG_OP || '"}'::text );
+                PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME ||'", "query": ' || current.queryID || ', "event": "' || TG_OP || '"}'::text );
               end LOOP;
             return old;
           end;

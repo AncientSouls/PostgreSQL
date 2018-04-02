@@ -1,4 +1,4 @@
-import { IExp, EExpType, TExpWhat, TExpFrom, TExpWhere, IExpValue, IExpComparison, EExpComparisonType, IExpCondition, EExpConditionType, IExpPath } from './query';
+import { IExp, EExpType, TExpWhat, IExpAlias, IExpValue, IExpComparison, EExpComparisonType, IExpCondition, EExpConditionType, IExpPath } from './query';
 export declare class COMPARISONS {
     static EQ(a: any, b: any): COMPARISON;
     static NOT(a: any, b: any): COMPARISON;
@@ -55,9 +55,9 @@ export declare class ExpSelect implements IExp {
     what: any[];
     WHAT(...what: TExpWhat): this;
     from: any[];
-    FROM(...from: TExpFrom): this;
+    FROM(...from: (IExpAlias | string)[]): this;
     where: any;
-    WHERE(where: TExpWhere): this;
+    WHERE(...where: any[]): this;
     group: any;
     GROUP(...group: IExpPath[]): this;
     order: any;
