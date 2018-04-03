@@ -28,6 +28,14 @@ import {
 
 export type TPostgresTracking =  IPostgresTracking<IPostgresTrackingItem, ITrackingEventsList<IPostgresTrackingItem>>;
 
+export interface IPostgresTrackingNotification {
+  table: string;
+  id: number;
+  query: number;
+  event: 'INSERT' | 'UPDATE' | 'DELETE' | 'TRUNCATE';
+  fetched: object[];
+}
+
 export interface IPostgresTrackingItemQuery {
   liveQuery: TLiveQuery;
   liveQueryId?: number;
@@ -66,7 +74,6 @@ export function mixin<T extends TClass<IInstance>>(
           const json = JSON.parse(n.payload);
           const queryId = this.liveQueryIds[json.query];
           const item = this.items[queryId];
-          item.tracked = json.tracked;
           item.fetched = json.fetched;
           this.override(item);
         }

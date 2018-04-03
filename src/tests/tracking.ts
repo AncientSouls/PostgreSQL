@@ -47,7 +47,7 @@ export default function () {
 
       await cleaning();
 
-      await client.query(trackingTriggers.createTrackingsTable());
+      await client.query(trackingTriggers.initTrackings());
       await client.query(trackingTriggers.createFunctions());
 
       await client.query(`

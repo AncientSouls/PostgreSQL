@@ -49,7 +49,7 @@ export function mixin<T extends TClass<IInstance>>(
     public deleteFunctionName = `ancient_postgresql_delete_live`;
     public truncateFunctionName = `ancient_postgresql_truncate_live`;
 
-    createTrackingsTable() {
+    initTrackings() {
       return `create table if not exists ${this.trackingsTableName} (
         id serial primary key,
         fetchQuery text,
@@ -57,8 +57,10 @@ export function mixin<T extends TClass<IInstance>>(
         tracked text default '',
         channel text
       );`;
+      // @todo добавить здесь триггер on insert новый трекинг, для заполнения tracked, либо если это возможно иначе заполнить tracked
     }
     createFunctionInsertUpdate() {
+      // @todo если есть в liveQuery или в (in(tracked) and not in(liveQuery)), перезаписать tracked, notify IPostgresTrackingNotification и return
       return `	
         create or replace function ${this.insertUpdateFunctionName}() returns trigger as $$
           declare
@@ -88,6 +90,7 @@ export function mixin<T extends TClass<IInstance>>(
       `;
     }
     createFunctionDelete() {
+      // @todo если есть в liveQuery или в (in(tracked) and not in(liveQuery)), перезаписать tracked, notify IPostgresTrackingNotification и return
       return `	
         create or replace function ${this.deleteFunctionName}() returns trigger as $$
           declare
@@ -115,6 +118,7 @@ export function mixin<T extends TClass<IInstance>>(
       `;
     }
     createFunctionTruncate() {
+      // @todo если liveQuery результаты отличаются от tracked, перезаписать tracked и сделать notify IPostgresTrackingNotification и return
       return `	
         create or replace function ${this.truncateFunctionName}() returns trigger as $$
           declare
