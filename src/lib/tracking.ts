@@ -1,7 +1,7 @@
 import * as _ from 'lodash';
 import { assert } from 'chai';
 import { Client } from 'pg';
-import { LiveTriggers } from './live-triggers';
+import { TrackingTriggers } from './tracking-triggers';
 
 import {
   TClass,
@@ -29,7 +29,7 @@ import {
 export type TPostgresTracking =  IPostgresTracking<IPostgresTrackingItem, ITrackingEventsList<IPostgresTrackingItem>>;
 
 export interface IPostgresTrackingItemQuery {
-  query: TLiveQuery;
+  liveQuery: TLiveQuery;
   liveQueryId?: number;
 }
 
@@ -41,10 +41,10 @@ export interface IPostgresTracking
 <ITE extends IPostgresTrackingItem, IEventsList extends ITrackingEventsList<ITE>>
 extends ITracking<ITE, IEventsList> {
   client: Client;
-  liveTriggers: LiveTriggers;
+  trackingTriggers: TrackingTriggers;
   liveQueryIds: { [id: number]: string };
 
-  start(client?: Client, liveTriggers?: LiveTriggers): Promise<void>;
+  start(client?: Client, trackingTriggers?: TrackingTriggers): Promise<void>;
 }
 
 export function mixin<T extends TClass<IInstance>>(
@@ -52,50 +52,61 @@ export function mixin<T extends TClass<IInstance>>(
 ): any {
   return class PostgresTracking extends superClass {
     public client;
-    public liveTriggers;
+    public trackingTriggers;
+    public liveQueryIds = {};
 
-    async start(client, liveTriggers) {
+    async start(client, trackingTriggers) {
       this.client = client;
-      this.liveTriggers = liveTriggers;
-      console.log('LISTEN');
+      this.trackingTriggers = trackingTriggers;
+
       await this.client.query(`LISTEN "${this.id}";`);
+
       client.on('notification', (n) => {
-        console.log(n);
         if (n.channel === this.id) {
           const json = JSON.parse(n.payload);
-          this.override(this.items[this.liveQueryIds[json.query]]);
+          const queryId = this.liveQueryIds[json.query];
+          const item = this.items[queryId];
+          item.tracked = json.tracked;
+          item.fetched = json.fetched;
+          this.override(item);
         }
       });
+
       await super.start();
     }
 
     async stop() {
-      console.log('LISTEN');
       this.client.query(`UNLISTEN "${this.id}";`);
+
       await super.stop();
     }
-
-    liveQueryIds = {};
     
     async tracked(item) {
-      const inserted = await this.client.query(`insert into ${this.liveTriggers.liveQueriesTableName} (query, channel) values ($1, '${this.id}') returning id;`, [item.query.query.createLiveQuery()]);
+      const inserted = await this.client.query(
+        `insert into ${this.trackingTriggers.liveQueriesTableName} (fetchQuery, liveQuery, channel) values ($1, $2, '${this.id}') returning id;`,
+        [
+          item.query.query.createQuery(),
+          item.query.query.createLiveQuery(),
+        ],
+      );
+
       const liveQueryId = inserted.rows[0].id;
-      this.liveQueryIds[liveQueryId] = item.tracker.id;
+      
+      this.liveQueryIds[liveQueryId] = liveQueryId;
       item.query.liveQueryId = liveQueryId;
 
       super.tracked(item);
     }
 
     async untracked(item) {
-      await this.client.query(`delete from ${this.liveTriggers.liveQueriesTableName} where id = ${item.query.liveQueryId};`);
+      await this.client.query(`delete from ${this.trackingTriggers.liveQueriesTableName} where id = ${item.query.liveQueryId};`);
       delete this.liveQueryIds[item.query.liveQueryId];
       
       return super.untracked(item);
     }
 
-    async fetch(query) {
-      const result = await this.client.query(query.query.createQuery(), query.query.params);
-      return result.rows;
+    async fetch(item) {
+      return item.fetched;
     }
   };
 }

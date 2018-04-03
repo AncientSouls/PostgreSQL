@@ -2,7 +2,7 @@ import { assert } from 'chai';
 import * as _ from 'lodash';
 import { Client } from 'pg';
 
-import { LiveTriggers } from '../lib/live-triggers';
+import { TrackingTriggers } from '../lib/tracking-triggers';
 import { LiveQuery } from '../lib/live-query';
 import { PostgresTracking } from '../lib/tracking';
 import { Tracker } from 'ancient-tracker/lib/tracker';
@@ -24,14 +24,14 @@ const delay = t => new Promise(resolve => setTimeout(resolve, t));
 export default function () {
   describe('Tracking:', () => {
     let client;
-    const liveTriggers = new LiveTriggers();
+    const trackingTriggers = new TrackingTriggers();
 
     const cleaning = async () => {
-      await client.query(liveTriggers.dropTriggers('documents'));
-      await client.query(liveTriggers.dropFunctions());
+      await client.query(trackingTriggers.dropTriggers('documents'));
+      await client.query(trackingTriggers.dropFunctions());
       
-      await client.query(liveTriggers.dropTable(liveTriggers.liveQueriesTableName));
-      await client.query(liveTriggers.dropTable('documents'));
+      await client.query(trackingTriggers.dropTable(trackingTriggers.trackingsTableName));
+      await client.query(trackingTriggers.dropTable('documents'));
     };
 
     beforeEach(async () => {
@@ -47,8 +47,8 @@ export default function () {
 
       await cleaning();
 
-      await client.query(liveTriggers.createLiveQueriesTable());
-      await client.query(liveTriggers.createFunctions());
+      await client.query(trackingTriggers.createTrackingsTable());
+      await client.query(trackingTriggers.createFunctions());
 
       await client.query(`
         create table if not exists documents (
@@ -56,7 +56,7 @@ export default function () {
           value int default 0
         );`,
       );
-      await client.query(liveTriggers.createTriggers('documents'));
+      await client.query(trackingTriggers.createTriggers('documents'));
     });
     
     afterEach(async () => {
@@ -66,7 +66,7 @@ export default function () {
 
     it('lifecycle', async () => {
       const t = new PostgresTracking();
-      await t.start(client, liveTriggers);
+      await t.start(client, trackingTriggers);
 
       const tracker = new Tracker();
 
@@ -90,11 +90,11 @@ export default function () {
       tracker.init(t.track({ query: q1 }));
 
       await delay(100);
-
+      
       await client.query(`insert into documents (value) values ${_.times(9, t => `(${t + 1})`)};`);
       
       await tracker.subscribe();
-
+      
       await delay(100);
       
       assert.deepEqual(tracker.ids, [3,4]);

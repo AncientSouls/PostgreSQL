@@ -14,17 +14,17 @@ import {
 
 
 
-export interface ILiveTriggersEventsList extends INodeEventsList {
+export interface ITrackingTriggersEventsList extends INodeEventsList {
 }
 
-export type TLiveTriggers = ILiveTriggers<ILiveTriggersEventsList>;
-export interface ILiveTriggers<IEL extends ILiveTriggersEventsList>
+export type TTrackingTriggers = ITrackingTriggers<ITrackingTriggersEventsList>;
+export interface ITrackingTriggers<IEL extends ITrackingTriggersEventsList>
 extends INode<IEL> {
-  liveQueriesTableName: string;
+  trackingsTableName: string;
   insertUpdateFunctionName: string;
   truncateFunctionName: string;
 
-  createLiveQueriesTable(): string;
+  createTrackingsTable(): string;
 
   createFunctionInsertUpdate(): string;
   createFunctionDelete(): string;
@@ -42,17 +42,19 @@ extends INode<IEL> {
 export function mixin<T extends TClass<IInstance>>(
   superClass: T,
 ): any {
-  return class LiveTriggers extends superClass {
-    public liveQueriesTableName = `ancient_postgresql_live_queries`;
+  return class TrackingTriggers extends superClass {
+    public trackingsTableName = `ancient_postgresql_trackings`;
 
     public insertUpdateFunctionName = `ancient_postgresql_insert_update_live`;
     public deleteFunctionName = `ancient_postgresql_delete_live`;
     public truncateFunctionName = `ancient_postgresql_truncate_live`;
 
-    createLiveQueriesTable() {
-      return `create table if not exists ${this.liveQueriesTableName} (
+    createTrackingsTable() {
+      return `create table if not exists ${this.trackingsTableName} (
         id serial primary key,
-        query text,
+        fetchQuery text,
+        liveQuery text,
+        tracked text default '',
         channel text
       );`;
     }
@@ -64,10 +66,10 @@ export function mixin<T extends TClass<IInstance>>(
             query text;
           begin
             select string_agg(
-              E'select \\''||${this.liveQueriesTableName}.channel::text||E'\\' as channel, \\''||${this.liveQueriesTableName}.id::text||E'\\' as queryID
-                from (' || ${this.liveQueriesTableName}.query|| E') as q
+              E'select \\''||${this.trackingsTableName}.channel::text||E'\\' as channel, \\''||${this.trackingsTableName}.id::text||E'\\' as queryID
+                from (' || ${this.trackingsTableName}.query|| E') as q
                   where q.table = \\'' || TG_TABLE_NAME || E'\\' and
-                  q.id = ' || NEW.id, ' union ') || ';' into query from ${this.liveQueriesTableName};
+                  q.id = ' || NEW.id, ' union ') || ';' into query from ${this.trackingsTableName};
             if query is not null then
               for current in EXECUTE query LOOP
                 PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "query": ' || current.queryID || ', "event": "' || TG_OP || '"}'::text );
@@ -93,10 +95,10 @@ export function mixin<T extends TClass<IInstance>>(
             query text;
           begin
             select string_agg(
-              E'select \\''||${this.liveQueriesTableName}.channel::text||E'\\' as channel, \\''||${this.liveQueriesTableName}.id::text||E'\\' as queryID 
-                from (' || ${this.liveQueriesTableName}.query|| E') as q 
+              E'select \\''||${this.trackingsTableName}.channel::text||E'\\' as channel, \\''||${this.trackingsTableName}.id::text||E'\\' as queryID 
+                from (' || ${this.trackingsTableName}.query|| E') as q 
                   where q.table = \\'' || TG_TABLE_NAME || E'\\' and 
-                  q.id = ' || OLD.id, ' union ') || ';' into query from ${this.liveQueriesTableName};
+                  q.id = ' || OLD.id, ' union ') || ';' into query from ${this.trackingsTableName};
               for current in EXECUTE query LOOP
                 PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME || '", "id": ' || OLD.id || ', "query": ' || current.queryID || ', "event": "' || TG_OP || '"}'::text );
               end LOOP;
@@ -120,9 +122,9 @@ export function mixin<T extends TClass<IInstance>>(
             query text;
           begin
             select string_agg(
-              E'select \\''||${this.liveQueriesTableName}.channel::text||E'\\' as channel, \\''||${this.liveQueriesTableName}.id::text||E'\\' as queryID 
-                from (' || ${this.liveQueriesTableName}.query|| E') as q 
-                  where q.table = \\'' || TG_TABLE_NAME || E'\\'', ' union ') || ';' into query from ${this.liveQueriesTableName};
+              E'select \\''||${this.trackingsTableName}.channel::text||E'\\' as channel, \\''||${this.trackingsTableName}.id::text||E'\\' as queryID 
+                from (' || ${this.trackingsTableName}.query|| E') as q 
+                  where q.table = \\'' || TG_TABLE_NAME || E'\\'', ' union ') || ';' into query from ${this.trackingsTableName};
               for current in EXECUTE query LOOP
                 PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME ||'", "query": ' || current.queryID || ', "event": "' || TG_OP || '"}'::text );
               end LOOP;
@@ -177,5 +179,5 @@ export function mixin<T extends TClass<IInstance>>(
   };
 }
 
-export const MixedLiveTriggers: TClass<TLiveTriggers> = mixin(Node);
-export class LiveTriggers extends MixedLiveTriggers {}
+export const MixedTrackingTriggers: TClass<TTrackingTriggers> = mixin(Node);
+export class TrackingTriggers extends MixedTrackingTriggers {}

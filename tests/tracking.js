@@ -11,7 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
 const _ = require("lodash");
 const pg_1 = require("pg");
-const live_triggers_1 = require("../lib/live-triggers");
+const tracking_triggers_1 = require("../lib/tracking-triggers");
 const live_query_1 = require("../lib/live-query");
 const tracking_1 = require("../lib/tracking");
 const tracker_1 = require("ancient-tracker/lib/tracker");
@@ -22,12 +22,12 @@ const delay = t => new Promise(resolve => setTimeout(resolve, t));
 function default_1() {
     describe('Tracking:', () => {
         let client;
-        const liveTriggers = new live_triggers_1.LiveTriggers();
+        const trackingTriggers = new tracking_triggers_1.TrackingTriggers();
         const cleaning = () => __awaiter(this, void 0, void 0, function* () {
-            yield client.query(liveTriggers.dropTriggers('documents'));
-            yield client.query(liveTriggers.dropFunctions());
-            yield client.query(liveTriggers.dropTable(liveTriggers.liveQueriesTableName));
-            yield client.query(liveTriggers.dropTable('documents'));
+            yield client.query(trackingTriggers.dropTriggers('documents'));
+            yield client.query(trackingTriggers.dropFunctions());
+            yield client.query(trackingTriggers.dropTable(trackingTriggers.trackingsTableName));
+            yield client.query(trackingTriggers.dropTable('documents'));
         });
         beforeEach(() => __awaiter(this, void 0, void 0, function* () {
             client = new pg_1.Client({
@@ -39,14 +39,14 @@ function default_1() {
             });
             yield client.connect();
             yield cleaning();
-            yield client.query(liveTriggers.createLiveQueriesTable());
-            yield client.query(liveTriggers.createFunctions());
+            yield client.query(trackingTriggers.createTrackingsTable());
+            yield client.query(trackingTriggers.createFunctions());
             yield client.query(`
         create table if not exists documents (
           id serial PRIMARY KEY,
           value int default 0
         );`);
-            yield client.query(liveTriggers.createTriggers('documents'));
+            yield client.query(trackingTriggers.createTriggers('documents'));
         }));
         afterEach(() => __awaiter(this, void 0, void 0, function* () {
             yield cleaning();
@@ -54,7 +54,7 @@ function default_1() {
         }));
         it('lifecycle', () => __awaiter(this, void 0, void 0, function* () {
             const t = new tracking_1.PostgresTracking();
-            yield t.start(client, liveTriggers);
+            yield t.start(client, trackingTriggers);
             const tracker = new tracker_1.Tracker();
             const events = [];
             tracker.on('emit', ({ eventName }) => events.push(eventName));

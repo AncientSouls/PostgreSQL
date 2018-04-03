@@ -23,7 +23,7 @@ const subscribing = t => _.times(t, t => `LISTEN ch${t + 1}; `).join('');
 const unsubscribing = t => _.times(t, t => `UNLISTEN ch${t + 1}; `).join('');
 
 export default function () {
-  describe.skip('LiveTriggers:', () => {
+  describe('LiveTriggers:', () => {
     let client;
     const querysCount = 3;
     const liveTriggers = new LiveTriggers();

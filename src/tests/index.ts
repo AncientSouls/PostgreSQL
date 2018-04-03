@@ -14,6 +14,6 @@ describe('AncientSouls/PostgreSQL:', () => {
   }
   query();
   liveQuery();
-  liveTriggers();
+  // liveTriggers();
   tracking();
 });
