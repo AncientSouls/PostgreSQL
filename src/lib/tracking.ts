@@ -90,7 +90,7 @@ export function mixin<T extends TClass<IInstance>>(
     
     async tracked(item) {
       const inserted = await this.client.query(
-        `insert into ${this.trackingTriggers.liveQueriesTableName} (fetchQuery, liveQuery, channel) values ($1, $2, '${this.id}') returning id;`,
+        `insert into ${this.trackingTriggers.trackingsTableName} (fetchQuery, liveQuery, channel) values ($1, $2, '${this.id}') returning id;`,
         [
           item.query.query.createQuery(),
           item.query.query.createLiveQuery(),
@@ -106,7 +106,7 @@ export function mixin<T extends TClass<IInstance>>(
     }
 
     async untracked(item) {
-      await this.client.query(`delete from ${this.trackingTriggers.liveQueriesTableName} where id = ${item.query.liveQueryId};`);
+      await this.client.query(`delete from ${this.trackingTriggers.trackingsTableName} where id = ${item.query.liveQueryId};`);
       delete this.liveQueryIds[item.query.liveQueryId];
       
       return super.untracked(item);

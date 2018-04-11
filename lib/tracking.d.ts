@@ -4,6 +4,13 @@ import { TClass, IInstance } from 'ancient-mixins/lib/mixins';
 import { ITrackingEventsList, ITrackingItem, ITracking } from 'ancient-tracker/lib/tracking';
 import { TLiveQuery } from '../lib/live-query';
 export declare type TPostgresTracking = IPostgresTracking<IPostgresTrackingItem, ITrackingEventsList<IPostgresTrackingItem>>;
+export interface IPostgresTrackingNotification {
+    table: string;
+    id: number;
+    query: number;
+    event: 'INSERT' | 'UPDATE' | 'DELETE' | 'TRUNCATE';
+    fetched: object[];
+}
 export interface IPostgresTrackingItemQuery {
     liveQuery: TLiveQuery;
     liveQueryId?: number;

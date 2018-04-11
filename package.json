@@ -7,13 +7,14 @@
   "license": "MIT",
   "scripts": {
     "tsc": "rm -rf ./lib ./tests && ./node_modules/typescript/bin/tsc",
-    "test": "./node_modules/mocha/bin/mocha ./tests/index.js --require source-map-support/register --timeout 5000",
+    "test": "./node_modules/mocha/bin/mocha ./tests/index.js --require source-map-support/register --timeout 50000000",
     "tslint": "./node_modules/tslint/bin/tslint -c tslint.json './src/**/*.ts'",
     "dev-link": "npm link ancient-mixins",
     "dev-test": "(rm -rf .dev && git clone -b dev https://github.com/AncientSouls/AncientSouls.github.io.git .dev && cd .dev && git submodule init && git submodule update && npm run dev-install) && npm link ./ && (cd .dev && npm run dev-use-links && npm run dev-check)",
     "np": "./node_modules/np/cli.js --no-publish --no-yarn --yolo  --any-branch",
     "pg-start": "docker pull postgres && docker run --name postgres -e POSTGRES_PASSWORD=postgres -d -p 5432:5432 postgres",
-    "pg-stop": "docker stop postgres && docker rm postgres"
+    "pg-stop": "docker stop postgres && docker rm postgres",
+    "pg-terminal": "docker run -it --rm --link postgres:postgres postgres psql -h postgres -U postgres"
   },
   "dependencies": {
     "ancient-mixins": "^0.0.11",

@@ -13,7 +13,7 @@ describe('AncientSouls/PostgreSQL:', () => {
     });
   }
   query();
-  liveQuery();
+  // liveQuery();
   // liveTriggers();
   tracking();
 });
