@@ -62,12 +62,17 @@ export function mixin<T extends TClass<IInstance>>(
 
     createFunctionTrackings() {
       return `
-      create or replace function ${this.trackingsTableName}_func() returns trigger as $trigger$
+      CREATE or REPLACE function ${this.trackingsTableName}_func() RETURNS trigger as $trigger$
         DECLARE
-          tracked text;
+          tracked TEXT;
         begin
-          EXECUTE $exec$ select $$'$$ || string_agg ('"'||q.id|| '/' ||q.table||'"', $$', '$$) || $$'$$ from ($exec$ || NEW.liveQuery || $exec$) as q $exec$ into NEW.tracked;
-          if NEW.tracked is null then NEW.tracked := $$('')$$; end if;
+          EXECUTE $exec$ 
+            SELECT $$'$$ || string_agg ('"'||liveQuery.id|| '/' ||liveQuery.table||'"', $$', '$$) || $$'$$ 
+            FROM ($exec$ || NEW.liveQuery || $exec$) as liveQuery 
+          $exec$ INTO NEW.tracked;
+          IF NEW.tracked IS null THEN 
+            NEW.tracked := $$('')$$; 
+          END IF;
         return NEW;
         end;
       $trigger$ LANGUAGE plpgsql;`;
@@ -100,8 +105,10 @@ export function mixin<T extends TClass<IInstance>>(
                   fetchResults.fetched as fetched
                 FROM 
                   ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveResults,
-                  (SELECT array_agg(fetchQuery) as fetched 
-                  FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery) as fetchResults
+                  (
+                    SELECT array_agg(fetchQuery) as fetched 
+                    FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
+                  ) as fetchResults
                 WHERE 
                   liveResults.table = '$$ || TG_TABLE_NAME || $$' and
                   liveResults.id = '$$ || NEW.id || $$'
@@ -112,13 +119,15 @@ export function mixin<T extends TClass<IInstance>>(
                   fetchResults.fetched as fetched
                 FROM 
                   ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveResults,
-                  (SELECT array_agg(fetchQuery) as fetched 
-                  FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery) as fetchResults
+                  (
+                    SELECT array_agg(fetchQuery) as fetched 
+                    FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
+                  ) as fetchResults
                 WHERE 
                   '$$ || '"' || NEW.id || $$/$$ || TG_TABLE_NAME || '"' || $$' in ($$ || ${this.trackingsTableName}.tracked || $$)
               ) as oneTracking limit 1 
             )$$, 
-            ' union ') into execString 
+            ' union ') INTO execString 
           FROM ${this.trackingsTableName};
 
           IF execString IS NOT null THEN
@@ -126,9 +135,7 @@ export function mixin<T extends TClass<IInstance>>(
               IF currentTracking.fetched IS null THEN
                 currentTracking.fetched := array[''];
               END IF;   
-                
               UPDATE ${this.trackingsTableName} SET tracked = '' WHERE id = currentTracking.queryID;
-
               PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "query": ' || currentTracking.queryID || ', "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], "event": "' || TG_OP || '"}'::text );
             END loop;
           END IF;
@@ -167,10 +174,8 @@ export function mixin<T extends TClass<IInstance>>(
                     FROM 
                       ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveResults,
                       (
-                        SELECT 
-                          array_agg(fetchQuery) as fetched 
-                        FROM 
-                          ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
+                        SELECT array_agg(fetchQuery) as fetched 
+                        FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
                       ) as fetchResults
                     WHERE 
                       liveResults.table = '$$ || TG_TABLE_NAME || $$' and
@@ -190,21 +195,18 @@ export function mixin<T extends TClass<IInstance>>(
                   '$$ || '"' || OLD.id || $$/$$ || TG_TABLE_NAME || '"' || $$' in ($$ || ${this.trackingsTableName}.tracked || $$)
               ) as oneTracking limit 1 
             )$$, 
-            ' union ') into execString 
+            ' union ') INTO execString 
           FROM ${this.trackingsTableName};
           
           IF execString IS NOT NULL THEN
             FOR currentTracking IN EXECUTE execString LOOP
               IF currentTracking.fetched IS NULL THEN
                 currentTracking.fetched := array[''];
-              END IF;   
-                
+              END IF;     
               UPDATE ${this.trackingsTableName} SET tracked = '' WHERE id = currentTracking.queryID;
-
               PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || OLD.id || ', "query": ' || currentTracking.queryID || ', "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], "event": "' || TG_OP || '"}'::text );
             END LOOP;
           END IF;
-
           return OLD;
         END;
         $trigger$ LANGUAGE plpgsql;
@@ -237,7 +239,10 @@ export function mixin<T extends TClass<IInstance>>(
               fetchResults.fetched as fetched
             FROM 
               ($$ || ${this.trackingsTableName}.liveQuery || $$) as q,
-              (SELECT array_agg (fetchQuery) as fetched FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery) as fetchResults
+              (
+                SELECT array_agg(fetchQuery) as fetched 
+                FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
+              ) as fetchResults
             WHERE (q.table = '$$ || TG_TABLE_NAME || $$')
           UNION
             SELECT 
@@ -257,25 +262,18 @@ export function mixin<T extends TClass<IInstance>>(
               liveResults.track <> $$ || '$$' || ${this.trackingsTableName}.tracked || '$$' || $$
           ) as oneTracking limit 1
         ) $$,
-        ' union ') into execString FROM ${this.trackingsTableName};
+        ' union ') INTO execString FROM ${this.trackingsTableName};
 
         IF execString IS NOT NULL THEN
           FOR currentTracking IN EXECUTE execString LOOP
-
             UPDATE ${this.trackingsTableName} SET tracked = '' WHERE id = currentTracking.queryID;
-
             IF currentTracking.fetched IS NULL THEN
-
               PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "query": ' || currentTracking.queryID || ', "fetched": [], "event": "' || TG_OP || '"}'::text );
-
-              ELSE
-              
+            ELSE
               PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "query": ' || currentTracking.queryID || ', "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], "event": "' || TG_OP || '"}'::text );
-
             END IF;
           END LOOP;
         END IF;
-
         return OLD;
       END;
       $trigger$ LANGUAGE plpgsql;
