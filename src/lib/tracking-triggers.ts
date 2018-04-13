@@ -136,7 +136,13 @@ export function mixin<T extends TClass<IInstance>>(
                 currentTracking.fetched := array[''];
               END IF;   
               UPDATE ${this.trackingsTableName} SET tracked = '' WHERE id = currentTracking.queryID;
-              PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "query": ' || currentTracking.queryID || ', "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], "event": "' || TG_OP || '"}'::text );
+              PERFORM pg_notify (
+                currentTracking.channel, 
+                '{ "table": "' || TG_TABLE_NAME || E'", 
+                  "id": ' || NEW.id || ', 
+                  "query": ' || currentTracking.queryID || ', 
+                  "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], 
+                  "event": "' || TG_OP || '" }');
             END loop;
           END IF;
 
@@ -204,7 +210,13 @@ export function mixin<T extends TClass<IInstance>>(
                 currentTracking.fetched := array[''];
               END IF;     
               UPDATE ${this.trackingsTableName} SET tracked = '' WHERE id = currentTracking.queryID;
-              PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || OLD.id || ', "query": ' || currentTracking.queryID || ', "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], "event": "' || TG_OP || '"}'::text );
+              PERFORM pg_notify (
+                currentTracking.channel, 
+                '{ "table": "' || TG_TABLE_NAME || E'", 
+                  "id": ' || OLD.id || ', 
+                  "query": ' || currentTracking.queryID || ', 
+                  "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], 
+                  "event": "' || TG_OP || '" }');
             END LOOP;
           END IF;
           return OLD;
@@ -270,7 +282,12 @@ export function mixin<T extends TClass<IInstance>>(
             IF currentTracking.fetched IS NULL THEN
               PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "query": ' || currentTracking.queryID || ', "fetched": [], "event": "' || TG_OP || '"}'::text );
             ELSE
-              PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "query": ' || currentTracking.queryID || ', "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], "event": "' || TG_OP || '"}'::text );
+              PERFORM pg_notify (
+                currentTracking.channel, 
+                '{ "table": "' || TG_TABLE_NAME || E'", 
+                "query": ' || currentTracking.queryID || ', 
+                "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], 
+                "event": "' || TG_OP || '" }');
             END IF;
           END LOOP;
         END IF;
