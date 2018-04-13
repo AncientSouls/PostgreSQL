@@ -12,8 +12,6 @@ import {
   INodeEventsList,
 } from 'ancient-mixins/lib/node';
 
-
-
 export interface ITrackingTriggersEventsList extends INodeEventsList {
 }
 
@@ -44,7 +42,6 @@ export function mixin<T extends TClass<IInstance>>(
 ): any {
   return class TrackingTriggers extends superClass {
     public trackingsTableName = `ancient_postgresql_trackings`;
-
     public insertUpdateFunctionName = `ancient_postgresql_insert_update_live`;
     public deleteFunctionName = `ancient_postgresql_delete_live`;
     public truncateFunctionName = `ancient_postgresql_truncate_live`;
@@ -57,7 +54,6 @@ export function mixin<T extends TClass<IInstance>>(
         tracked text,
         channel text
       );`;
-      // @todo добавить здесь триггер on insert новый трекинг, для заполнения tracked, либо если это возможно иначе заполнить tracked
     }
 
     createFunctionTrackings() {
@@ -65,7 +61,7 @@ export function mixin<T extends TClass<IInstance>>(
       CREATE or REPLACE function ${this.trackingsTableName}_func() RETURNS trigger as $trigger$
         DECLARE
           tracked TEXT;
-        begin
+        BEGIN
           EXECUTE $exec$ 
             SELECT $$'$$ || string_agg ('"'||liveQuery.id|| '/' ||liveQuery.table||'"', $$', '$$) || $$'$$ 
             FROM ($exec$ || NEW.liveQuery || $exec$) as liveQuery 
@@ -74,7 +70,7 @@ export function mixin<T extends TClass<IInstance>>(
             NEW.tracked := $$('')$$; 
           END IF;
         return NEW;
-        end;
+        END;
       $trigger$ LANGUAGE plpgsql;`;
     }
 
@@ -100,8 +96,8 @@ export function mixin<T extends TClass<IInstance>>(
                 oneTracking.fetched 
               FROM (
                 SELECT 
-                  '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-                  $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
+                  '$$ || ${this.trackingsTableName}.channel || $$' as channel, 
+                  $$ || ${this.trackingsTableName}.id || $$ as queryID, 
                   fetchResults.fetched as fetched
                 FROM 
                   ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveResults,
@@ -110,12 +106,12 @@ export function mixin<T extends TClass<IInstance>>(
                     FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
                   ) as fetchResults
                 WHERE 
-                  liveResults.table = '$$ || TG_TABLE_NAME || $$' and
-                  liveResults.id = '$$ || NEW.id || $$'
+                  liveResults.id = '$$ || NEW.id || $$' and
+                  liveResults.table = '$$ || TG_TABLE_NAME || $$'
               UNION
                 SELECT 
-                  '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-                  $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
+                  '$$ || ${this.trackingsTableName}.channel || $$' as channel, 
+                  $$ || ${this.trackingsTableName}.id || $$ as queryID, 
                   fetchResults.fetched as fetched
                 FROM 
                   ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveResults,
@@ -174,8 +170,8 @@ export function mixin<T extends TClass<IInstance>>(
                 oneTracking.fetched 
               FROM (
                 SELECT 
-                  '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-                  $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
+                  '$$ || ${this.trackingsTableName}.channel || $$' as channel, 
+                  $$ || ${this.trackingsTableName}.id || $$ as queryID, 
                   fetchResults.fetched as fetched
                     FROM 
                       ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveResults,
@@ -184,12 +180,12 @@ export function mixin<T extends TClass<IInstance>>(
                         FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
                       ) as fetchResults
                     WHERE 
-                      liveResults.table = '$$ || TG_TABLE_NAME || $$' and
-                      liveResults.id = '$$ || OLD.id || $$'
+                      liveResults.id = '$$ || OLD.id || $$' and
+                      liveResults.table = '$$ || TG_TABLE_NAME || $$'
               UNION
                 SELECT 
-                  '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-                  $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
+                  '$$ || ${this.trackingsTableName}.channel || $$' as channel, 
+                  $$ || ${this.trackingsTableName}.id || $$ as queryID, 
                   fetchResults.fetched as fetched
                 FROM 
                   ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveResults,
@@ -232,55 +228,54 @@ export function mixin<T extends TClass<IInstance>>(
       `;
     }
     createFunctionTruncate() {
-      // @todo если liveQuery результаты отличаются от tracked, перезаписать tracked и сделать notify IPostgresTrackingNotification и return
       return `	
       CREATE or REPLACE function ${this.truncateFunctionName}() RETURNS trigger as $trigger$
       DECLARE
         currentTracking RECORD;
         execString TEXT;
         BEGIN
-        SELECT string_agg($$( 
-          SELECT  
-            oneTracking.channel, 
-            oneTracking.queryID, 
-            oneTracking.fetched 
-          FROM (
-            SELECT 
-              '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-              $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
-              fetchResults.fetched as fetched
-            FROM 
-              ($$ || ${this.trackingsTableName}.liveQuery || $$) as q,
+          SELECT string_agg($$( 
+            SELECT  
+              oneTracking.channel, 
+              oneTracking.queryID, 
+              oneTracking.fetched 
+            FROM (
+              SELECT 
+                '$$ || ${this.trackingsTableName}.channel || $$' as channel, 
+                $$ || ${this.trackingsTableName}.id || $$ as queryID, 
+                fetchResults.fetched as fetched
+              FROM 
+                ($$ || ${this.trackingsTableName}.liveQuery || $$) as q,
+                (
+                  SELECT array_agg(fetchQuery) as fetched 
+                  FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
+                ) as fetchResults
+              WHERE (q.table = '$$ || TG_TABLE_NAME || $$')
+            UNION
+              SELECT 
+                '$$ || ${this.trackingsTableName}.channel || $$' as channel, 
+                $$ || ${this.trackingsTableName}.id || $$ as queryID, 
+                fetchResults.fetched as fetched
+              FROM (
+                SELECT $s_a$'$s_a$ || string_agg('"'||liveQuery.id||'/'||liveQuery.table||'"', $s_a$', '$s_a$) || $s_a$'$s_a$ as track 
+                FROM ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveQuery
+              ) as liveResults,
               (
-                SELECT array_agg(fetchQuery) as fetched 
+                SELECT array_agg (fetchQuery) as fetched 
                 FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
               ) as fetchResults
-            WHERE (q.table = '$$ || TG_TABLE_NAME || $$')
-          UNION
-            SELECT 
-              '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-              $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
-              fetchResults.fetched as fetched
-            FROM (
-              SELECT $s_a$'$s_a$ || string_agg('"'||liveQuery.id||'/'||liveQuery.table||'"', $s_a$', '$s_a$) || $s_a$'$s_a$ as track 
-              FROM ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveQuery
-            ) as liveResults,
-            (
-              SELECT array_agg (fetchQuery) as fetched 
-              FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
-            ) as fetchResults
-            WHERE 
-              liveResults.track is null or
-              liveResults.track <> $$ || '$$' || ${this.trackingsTableName}.tracked || '$$' || $$
-          ) as oneTracking limit 1
-        ) $$,
+              WHERE 
+                liveResults.track is null or
+                liveResults.track <> $$ || '$$' || ${this.trackingsTableName}.tracked || '$$' || $$
+            ) as oneTracking limit 1
+          ) $$,
         ' union ') INTO execString FROM ${this.trackingsTableName};
 
         IF execString IS NOT NULL THEN
           FOR currentTracking IN EXECUTE execString LOOP
             UPDATE ${this.trackingsTableName} SET tracked = '' WHERE id = currentTracking.queryID;
             IF currentTracking.fetched IS NULL THEN
-              PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "query": ' || currentTracking.queryID || ', "fetched": [], "event": "' || TG_OP || '"}'::text );
+              PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "query": ' || currentTracking.queryID || ', "fetched": [], "event": "' || TG_OP || '"}' );
             ELSE
               PERFORM pg_notify (
                 currentTracking.channel, 
