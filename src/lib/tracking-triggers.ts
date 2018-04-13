@@ -82,62 +82,59 @@ export function mixin<T extends TClass<IInstance>>(
 
     createFunctionInsertUpdate() {
       return `	
-        create or replace function ${this.insertUpdateFunctionName}() returns trigger as $trigger$
-          declare
-            current record;
-            query text;
-         begin
-            select 
-              string_agg (
-                $$( 
-                  select 
-                    channel, 
-                    queryID, 
-                    tracked 
-                  from (
-                    select 
-                      '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-                      $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
-                      q2.tracked as tracked
-                        from 
-                          ($$ || ${this.trackingsTableName}.liveQuery || $$) as q,
-                          (select array_agg('"'||q2.id||'/'||q2.table||'"') as tracked from 
-                            ($$ || ${this.trackingsTableName}.liveQuery || $$) as q2) as q2
-                        where 
-                            q.table = '$$ || TG_TABLE_NAME || $$' and
-                            q.id = $$ || NEW.id || $$
-                  UNION
-                    select 
-                      '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-                      $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
-                      q2.tracked as tracked
-                    from (
-                      select 
-                        array_agg('"'||q2.id||'/'||q2.table||'"') as tracked 
-                      from (
-                        $$ || ${this.trackingsTableName}.liveQuery || $$) as q2) as q2
-                    where 
-                      array[$$ || ${this.trackingsTableName}.tracked || $$] @> array['$$ || '"' || NEW.id || $$/$$ || TG_TABLE_NAME || '"' || $$']) as q limit 1
-                )$$, 
-              ' union ') into query 
-            from ${this.trackingsTableName};
+        CREATE or REPLACE function ${this.insertUpdateFunctionName}() RETURNS trigger as $trigger$
+        DECLARE
+          currentTracking RECORD;
+          execString TEXT;
+        BEGIN
+          SELECT 
+            string_agg ($$( 
+              SELECT 
+                oneTracking.channel, 
+                oneTracking.queryID, 
+                oneTracking.fetched 
+              FROM (
+                SELECT 
+                  '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
+                  $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
+                  fetchResults.fetched as fetched
+                FROM 
+                  ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveResults,
+                  (SELECT array_agg(fetchQuery) as fetched 
+                  FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery) as fetchResults
+                WHERE 
+                  liveResults.table = '$$ || TG_TABLE_NAME || $$' and
+                  liveResults.id = '$$ || NEW.id || $$'
+              UNION
+                SELECT 
+                  '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
+                  $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
+                  fetchResults.fetched as fetched
+                FROM 
+                  ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveResults,
+                  (SELECT array_agg(fetchQuery) as fetched 
+                  FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery) as fetchResults
+                WHERE 
+                  '$$ || '"' || NEW.id || $$/$$ || TG_TABLE_NAME || '"' || $$' in ($$ || ${this.trackingsTableName}.tracked || $$)
+              ) as oneTracking limit 1 
+            )$$, 
+            ' union ') into execString 
+          FROM ${this.trackingsTableName};
 
-              
+          IF execString IS NOT null THEN
+            for currentTracking in EXECUTE execString LOOP
+              IF currentTracking.fetched IS null THEN
+                currentTracking.fetched := array[''];
+              END IF;   
+                
+              UPDATE ${this.trackingsTableName} SET tracked = '' WHERE id = currentTracking.queryID;
 
-            if query is not null then
-              for current in EXECUTE query LOOP
-                if current.tracked is null then
-                  current.tracked := array[''];
-                end if;   
-                  
-                  update ${this.trackingsTableName} set tracked = '' where id = current.queryID;
+              PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "query": ' || currentTracking.queryID || ', "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], "event": "' || TG_OP || '"}'::text );
+            END loop;
+          END IF;
 
-                  PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "query": ' || current.queryID || ', "tracked": [' || array_to_string(current.tracked, ', ') || '], "event": "' || TG_OP || '"}'::text );
-              end loop;
-            end if;
-
-            return new;
-          end;
+          return NEW;
+        END;
         $trigger$ LANGUAGE plpgsql;
       `;
     }
@@ -151,61 +148,65 @@ export function mixin<T extends TClass<IInstance>>(
 
     createFunctionDelete() {
       return `	
-        create or replace function ${this.deleteFunctionName}() returns trigger as $trigger$
-          declare
-            current record;
-            query text;
-          begin
-            select 
-              string_agg (
-                $$( 
-                  select 
-                    channel, 
-                    queryID, 
-                    tracked 
-                  from (
-                    select 
-                      '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-                      $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
-                      q2.tracked as tracked
-                        from 
-                          ($$ || ${this.trackingsTableName}.liveQuery || $$) as q,
-                          (select array_agg('"'||q2.id||'/'||q2.table||'"') as tracked from 
-                            ($$ || ${this.trackingsTableName}.liveQuery || $$) as q2) as q2
-                        where 
-                            q.table = '$$ || TG_TABLE_NAME || $$' and
-                            q.id = $$ || OLD.id || $$
-                  UNION
-                    select 
-                      '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-                      $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
-                      q2.tracked as tracked
-                    from (
-                      select 
-                        array_agg('"'||q2.id||'/'||q2.table||'"') as tracked 
-                      from (
-                        $$ || ${this.trackingsTableName}.liveQuery || $$) as q2) as q2
-                    where 
-                      array[$$ || ${this.trackingsTableName}.tracked || $$] @> array['$$ || '"' || OLD.id || $$/$$ || TG_TABLE_NAME || '"' || $$']) as q limit 1
-                )$$, 
-              ' union ') into query 
-            from ${this.trackingsTableName};
+        CREATE or REPLACE function ${this.deleteFunctionName}() RETURNS trigger as $trigger$
+        DECLARE
+          currentTracking RECORD;
+          execString TEXT;
+        BEGIN
+          SELECT 
+            string_agg ($$( 
+              SELECT 
+                oneTracking.channel, 
+                oneTracking.queryID, 
+                oneTracking.fetched 
+              FROM (
+                SELECT 
+                  '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
+                  $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
+                  fetchResults.fetched as fetched
+                    FROM 
+                      ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveResults,
+                      (
+                        SELECT 
+                          array_agg(fetchQuery) as fetched 
+                        FROM 
+                          ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
+                      ) as fetchResults
+                    WHERE 
+                      liveResults.table = '$$ || TG_TABLE_NAME || $$' and
+                      liveResults.id = '$$ || OLD.id || $$'
+              UNION
+                SELECT 
+                  '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
+                  $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
+                  fetchResults.fetched as fetched
+                FROM 
+                  ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveResults,
+                  (
+                    SELECT array_agg(fetchQuery) as fetched 
+                    FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
+                  ) as fetchResults
+                WHERE 
+                  '$$ || '"' || OLD.id || $$/$$ || TG_TABLE_NAME || '"' || $$' in ($$ || ${this.trackingsTableName}.tracked || $$)
+              ) as oneTracking limit 1 
+            )$$, 
+            ' union ') into execString 
+          FROM ${this.trackingsTableName};
+          
+          IF execString IS NOT NULL THEN
+            FOR currentTracking IN EXECUTE execString LOOP
+              IF currentTracking.fetched IS NULL THEN
+                currentTracking.fetched := array[''];
+              END IF;   
+                
+              UPDATE ${this.trackingsTableName} SET tracked = '' WHERE id = currentTracking.queryID;
 
-            if query is not null then
-              for current in EXECUTE query LOOP
-                if current.tracked is null then
-                  current.tracked := array[''];
-                end if;
+              PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || OLD.id || ', "query": ' || currentTracking.queryID || ', "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], "event": "' || TG_OP || '"}'::text );
+            END LOOP;
+          END IF;
 
-                update ${this.trackingsTableName} set tracked = '' where id = current.queryID;
-
-                PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || OLD.id || ', "query": ' || current.queryID || ', "tracked": [' || array_to_string(current.tracked, ', ') || '], "event": "' || TG_OP || '"}'::text );
-
-              end loop;
-            end if;
-
-            return OLD;
-          end;
+          return OLD;
+        END;
         $trigger$ LANGUAGE plpgsql;
       `;
     }
@@ -219,61 +220,66 @@ export function mixin<T extends TClass<IInstance>>(
     createFunctionTruncate() {
       // @todo если liveQuery результаты отличаются от tracked, перезаписать tracked и сделать notify IPostgresTrackingNotification и return
       return `	
-      create or replace function ${this.truncateFunctionName}() returns trigger as $trigger$
-        declare
-          current record;
-          query text;
-         begin
-            select 
-              string_agg (
-                $$( 
-                  select 
-                    channel, 
-                    queryID, 
-                    tracked 
-                  from (
-                    select 
-                      '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-                      $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
-                      q2.tracked as tracked
-                        from 
-                          ($$ || ${this.trackingsTableName}.liveQuery || $$) as q,
-                          (select array_agg('"'||q2.id||'/'||q2.table||'"') as tracked from 
-                            ($$ || ${this.trackingsTableName}.liveQuery || $$) as q2) as q2
-                        where 
-                            q.table = '$$ || TG_TABLE_NAME || $$'
-                  UNION
-                    select 
-                      '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
-                      $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
-                      q2.tracked as tracked
-                    from (
-                      select 
-                        array_agg('"'||q2.id||'/'||q2.table||'"') as tracked 
-                      from (
-                        $$ || ${this.trackingsTableName}.liveQuery || $$) as q2) as q2) as q limit 1
-                )$$, 
-              ' union ') into query 
-            from ${this.trackingsTableName};
+      CREATE or REPLACE function ${this.truncateFunctionName}() RETURNS trigger as $trigger$
+      DECLARE
+        currentTracking RECORD;
+        execString TEXT;
+        BEGIN
+        SELECT string_agg($$( 
+          SELECT  
+            oneTracking.channel, 
+            oneTracking.queryID, 
+            oneTracking.fetched 
+          FROM (
+            SELECT 
+              '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
+              $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
+              fetchResults.fetched as fetched
+            FROM 
+              ($$ || ${this.trackingsTableName}.liveQuery || $$) as q,
+              (SELECT array_agg (fetchQuery) as fetched FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery) as fetchResults
+            WHERE (q.table = '$$ || TG_TABLE_NAME || $$')
+          UNION
+            SELECT 
+              '$$ || ${this.trackingsTableName}.channel::text || $$' as channel, 
+              $$ || ${this.trackingsTableName}.id::text || $$ as queryID, 
+              fetchResults.fetched as fetched
+            FROM (
+              SELECT $s_a$'$s_a$ || string_agg('"'||liveQuery.id||'/'||liveQuery.table||'"', $s_a$', '$s_a$) || $s_a$'$s_a$ as track 
+              FROM ($$ || ${this.trackingsTableName}.liveQuery || $$) as liveQuery
+            ) as liveResults,
+            (
+              SELECT array_agg (fetchQuery) as fetched 
+              FROM ($$ || ${this.trackingsTableName}.fetchQuery || $$) as fetchQuery
+            ) as fetchResults
+            WHERE 
+              liveResults.track is null or
+              liveResults.track <> $$ || '$$' || ${this.trackingsTableName}.tracked || '$$' || $$
+          ) as oneTracking limit 1
+        ) $$,
+        ' union ') into execString FROM ${this.trackingsTableName};
 
+        IF execString IS NOT NULL THEN
+          FOR currentTracking IN EXECUTE execString LOOP
 
-          if query is not null then
-            for current in EXECUTE query LOOP
+            UPDATE ${this.trackingsTableName} SET tracked = '' WHERE id = currentTracking.queryID;
 
-              if current.tracked is null then
-                current.tracked := array[''];
-              end if;
+            IF currentTracking.fetched IS NULL THEN
 
-              update ${this.trackingsTableName} set tracked = '' where id = current.queryID;
-              PERFORM pg_notify (current.channel, '{ "table": "' || TG_TABLE_NAME || '", "query": ' || current.queryID || ', "tracked": [' || array_to_string(current.tracked, ', ') || '], "event": "' || TG_OP || '"}'::text );
+              PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "query": ' || currentTracking.queryID || ', "fetched": [], "event": "' || TG_OP || '"}'::text );
 
-            end loop;
-          end if;
+              ELSE
+              
+              PERFORM pg_notify (currentTracking.channel, '{ "table": "' || TG_TABLE_NAME || E'", "query": ' || currentTracking.queryID || ', "fetched": [' || array_to_string(currentTracking.fetched, ', ') || '], "event": "' || TG_OP || '"}'::text );
 
-          return OLD;
-        end;
+            END IF;
+          END LOOP;
+        END IF;
+
+        return OLD;
+      END;
       $trigger$ LANGUAGE plpgsql;
-    `;
+      `;
     }
     createTriggerTruncate(tableName) {
       return `CREATE TRIGGER ${tableName}_${this.truncateFunctionName}

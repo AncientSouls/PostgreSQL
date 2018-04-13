@@ -139,6 +139,8 @@ export default function () {
 
       await client.query(`TRUNCATE DOCUMENTS;`);
 
+      // await delay(1000000000); 
+
       await client.query(`insert into documents (value) values (3)`);
 
       await client.query(`update documents set value = 4 where id = 12`);

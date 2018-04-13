@@ -87,6 +87,21 @@ function default_1() {
                 q2.createLiveQuery(),
             ]);
             yield client.query(`insert into documents (value) values ${_.times(9, t => `(${t + 1})`)};`);
+            yield client.query(`insert into documents2 (value) values (4)`);
+            yield client.query(`insert into documents (value) values (0)`);
+            yield client.query(`update documents set value = 4 where id > 4`);
+            yield client.query(`TRUNCATE DOCUMENTS;`);
+            yield client.query(`insert into documents (value) values (3)`);
+            yield client.query(`update documents set value = 4 where id = 12`);
+            yield client.query(`update documents set value = 1 where id = 12`);
+            yield client.query(`update documents set value = 3 where id = 12`);
+            yield client.query(`DELETE from documents where value = 1`);
+            yield client.query(`DELETE from documents where value = 3`);
+            yield client.query(`insert into documents (value) values ${_.times(9, t => `(${t + 1})`)};`);
+            yield client.query(`DELETE from documents where id = 19`);
+            yield client.query(`DELETE from documents where value > 0`);
+            yield client.query(`TRUNCATE DOCUMENTS;`);
+            yield client.query(`TRUNCATE documents2`);
             console.log(notifications);
         }));
     });
