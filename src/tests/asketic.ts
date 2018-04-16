@@ -14,6 +14,20 @@ import {
   Tracker,
 } from 'ancient-tracker/lib/tracker';
 
+import {
+  IQuery,
+  IQueryResolver,
+  asket,
+} from 'ancient-asket/lib/asket';
+
+import {
+  AsketicTracker,
+} from 'ancient-tracker/lib/asketic-tracker';
+
+import {
+  trackerToBundles,
+} from 'ancient-tracker/lib/bundles';
+
 import trackerTest, {
   delay,
 } from 'ancient-tracker/tests/tracker-test';
@@ -29,12 +43,16 @@ import {
   validators,
 } from '../lib/rules-full';
 
+import {
+  Cursor,
+} from 'ancient-cursor/lib/cursor';
+
 const resolver = createResolver(resolverOptions);
 
 import { Triggers } from '../lib/triggers';
 
 export default () => { 
-  describe('adapter', () => {
+  describe('asketic', () => {
     let client;
     const triggers = new Triggers();
 
@@ -77,10 +95,31 @@ export default () => {
     });
 
     it('lifecycle', async () => {
+      const at = new AsketicTracker();
+
       const adapter = new Adapter();
       await adapter.start({ client, triggers });
 
       const tracker = new Tracker();
+
+      const resolver = async (flow) => {
+        if (flow.env.type === 'root') {
+          if (flow.name === 'query') {
+            return await at.flowTracker(flow, new Tracker().init(adapter.track(flow)));
+          }
+        }
+        if (flow.env.type === 'items') {
+          return at.flowItem(flow);
+        }
+        if (flow.env.type === 'item') {
+          if (flow.name === 'query') {
+            return await at.flowTracker(flow, new Tracker().init(adapter.track(flow)));
+          }
+          return at.flowValue(flow);
+        }
+        throw new Error('wtf');
+      };
+
 
       const exp = order => ['select',
         ['returns'],
