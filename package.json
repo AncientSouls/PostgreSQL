@@ -7,7 +7,8 @@
   "license": "MIT",
   "scripts": {
     "tsc": "rm -rf ./lib ./tests && ./node_modules/typescript/bin/tsc",
-    "test": "./node_modules/mocha/bin/mocha ./tests/index.js --require source-map-support/register",
+    "_test": "./node_modules/mocha/bin/mocha ./tests/index.js --require source-map-support/register",
+    "test": "npm run pg-start && npm run _test -- --timeout 10000 && npm run pg-stop",
     "tslint": "./node_modules/tslint/bin/tslint -c tslint.json './src/**/*.ts'",
     "dev-link": "npm link ancient-mixins",
     "dev-test": "(rm -rf .dev && git clone -b dev https://github.com/AncientSouls/AncientSouls.github.io.git .dev && cd .dev && git submodule init && git submodule update && npm run dev-install) && npm link ./ && (cd .dev && npm run dev-use-links && npm run dev-check)",
