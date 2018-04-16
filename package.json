@@ -7,7 +7,7 @@
   "license": "MIT",
   "scripts": {
     "tsc": "rm -rf ./lib ./tests && ./node_modules/typescript/bin/tsc",
-    "test": "./node_modules/mocha/bin/mocha ./tests/index.js --require source-map-support/register --timeout 50000000",
+    "test": "./node_modules/mocha/bin/mocha ./tests/index.js --require source-map-support/register",
     "tslint": "./node_modules/tslint/bin/tslint -c tslint.json './src/**/*.ts'",
     "dev-link": "npm link ancient-mixins",
     "dev-test": "(rm -rf .dev && git clone -b dev https://github.com/AncientSouls/AncientSouls.github.io.git .dev && cd .dev && git submodule init && git submodule update && npm run dev-install) && npm link ./ && (cd .dev && npm run dev-use-links && npm run dev-check)",
@@ -17,11 +17,13 @@
     "pg-terminal": "docker run -it --rm --link postgres:postgres postgres psql -h postgres -U postgres"
   },
   "dependencies": {
-    "ancient-mixins": "^0.0.11",
-    "ancient-tracker": "0.0.16",
+    "ancient-babilon": "0.0.10",
+    "ancient-mixins": "0.0.12",
+    "ancient-tracker": "^0.1.1",
     "chai": "^4.1.2",
     "lodash": "^4.17.5",
     "pg": "^7.4.1",
+    "randomstring": "^1.1.5",
     "react": "^16.3.0"
   },
   "devDependencies": {
