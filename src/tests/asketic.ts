@@ -1,14 +1,14 @@
 import * as _ from 'lodash';
 import { assert } from 'chai';
-import { Client } from 'pg';
+import * as pg from 'pg';
 
 import {
   babilon,
 } from 'ancient-babilon/lib/babilon';
 
 import {
-  Adapter,
-} from '../lib/adapter';
+  Client,
+} from '../lib/client';
 
 import {
   Tracker,
@@ -21,16 +21,18 @@ import {
 } from 'ancient-asket/lib/asket';
 
 import {
-  AsketicTracker,
-} from 'ancient-tracker/lib/asketic-tracker';
+  Asketic,
+} from 'ancient-tracker/lib/asketic';
 
 import {
-  trackerToBundles,
+  dataToBundle,
+  asketicChangesToBundles,
 } from 'ancient-tracker/lib/bundles';
 
-import trackerTest, {
-  delay,
-} from 'ancient-tracker/tests/tracker-test';
+import {
+  test,
+  query,
+} from 'ancient-tracker/tests/test';
 
 import {
   returnsReferences,
@@ -47,26 +49,28 @@ import {
   Cursor,
 } from 'ancient-cursor/lib/cursor';
 
-const resolver = createResolver(resolverOptions);
+const babilonResolver = createResolver(resolverOptions);
+
+const delay = async time => new Promise(res => setTimeout(res, time));
 
 import { Triggers } from '../lib/triggers';
 
 export default () => { 
-  describe('asketic', () => {
-    let client;
+  describe('Asketic', () => {
+    let c;
     const triggers = new Triggers();
 
     const cleaning = async () => {
-      await client.query(`
+      await c.query(`
         drop table if exists documents1;
       `);
 
-      await client.query(triggers.deinit());
-      await client.query(triggers.unwrap('documents1'));
+      await c.query(triggers.deinit());
+      await c.query(triggers.unwrap('documents1'));
     };
 
     beforeEach(async () => {
-      client = new Client({
+      c = new pg.Client({
         user: 'postgres',
         host: 'localhost',
         database: 'postgres',
@@ -74,175 +78,133 @@ export default () => {
         port: 5432,
       });
       
-      await client.connect();
+      await c.connect();
 
       await cleaning();
 
-      await client.query(`
+      await c.query(`
         create table if not exists documents1 (
           id serial PRIMARY KEY,
           num int default 0
         );
       `);
 
-      await client.query(triggers.init());
-      await client.query(triggers.wrap('documents1'));
+      await c.query(triggers.init());
+      await c.query(triggers.wrap('documents1'));
     });
     
     afterEach(async () => {
       await cleaning();
-      await client.end();
+      await c.end();
     });
 
     it('lifecycle', async () => {
-      const at = new AsketicTracker();
+      const client = new Client();
+      client.client = {
+        triggers,
+        pg: c,
+      };
+      await client.start();
 
-      const adapter = new Adapter();
-      await adapter.start({ client, triggers });
+      const asketic = new Asketic();
 
-      const tracker = new Tracker();
-
-      const resolver = async (flow) => {
-        if (flow.env.type === 'root') {
-          if (flow.name === 'query') {
-            return await at.flowTracker(flow, new Tracker().init(adapter.track(flow)));
+      const flow = {
+        query,
+        next: asket,
+        resolver: async (flow) => {
+          if (flow.name === 'a' && flow.env.type === 'root') {
+            const tracker = new Tracker();
+            tracker.idField = 'id';
+            tracker.query = trackerQuery(expAll, {});
+            client.add(tracker);
+            return asketic.flowTracker(flow, tracker);
           }
-        }
-        if (flow.env.type === 'items') {
-          return at.flowItem(flow);
-        }
-        if (flow.env.type === 'item') {
-          if (flow.name === 'query') {
-            return await at.flowTracker(flow, new Tracker().init(adapter.track(flow)));
+          if (flow.name === 'b' && flow.env.type === 'item') {
+            const tracker = new Tracker();
+            tracker.idField = 'id';
+            tracker.query = trackerQuery(expEqual, { num: flow.env.item.num });
+            client.add(tracker);
+            return asketic.flowTracker(flow, tracker);
           }
-          return at.flowValue(flow);
-        }
-        throw new Error('wtf');
+          // msut be writed in asketic compatibly resolver
+          if (flow.env.type === 'items') return asketic.flowItem(flow);
+          return asketic.flowValue(flow);
+        },
       };
 
 
-      const exp = order => ['select',
+      const expAll = ['select',
         ['returns'],
         ['from',['alias','documents1']],
         ['and',
           ['gt',['path','documents1','num'],['data',2]],
           ['lt',['path','documents1','num'],['data',6]],
         ],
-        ['orders',['order',['path','documents1','num'],order],['order',['path','documents1','id'],true]],
+        ['orders',['order',['path','documents1','num'],true],['order',['path','documents1','id'],true]],
         ['limit',2],
       ];
 
-      const q = (order = true) => ({
-        triggers,
-        fetchQuery: babilon({ resolver, validators, exp: exp(order) }).result,
-        trackQuery: babilon({ resolver, validators, exp: returnsReferences(exp(order), generateReturnsAs()) }).result,
+      const expEqual = ['select',
+        ['returns'],
+        ['from',['alias','documents1']],
+        ['and',
+          ['eq',['path','documents1','num'],['variable','num']],
+        ],
+        ['orders',['order',['path','documents1','num'],true],['order',['path','documents1','id'],true]],
+      ];
+
+      const trackerQuery = (exp, variables) => ({
+        fetchQuery: babilon({ validators, variables, exp, resolver: babilonResolver }).result,
+        trackQuery: babilon({ validators, variables, exp: returnsReferences(exp, generateReturnsAs()), resolver: babilonResolver }).result,
       });
 
-      await delay(5);
+      const cursor = new Cursor();
+  
+      const result = await asketic.next(flow);
+      // transform first asketic result to cursor bundle
+      cursor.apply(dataToBundle(result.data));
 
-      await trackerTest(
-        adapter,
-        tracker,
-        q(true),
-        q(false),
+      const update = async () => {
+        const changes = await asketic.get();
+        const bundles = asketicChangesToBundles(changes);
+        _.each(bundles, bundle => cursor.apply(bundle));
+      };
+    
+      await test(
+        cursor,
         async () => {
-          await client.query(`insert into documents1 (num) values (1);`);
-          await client.query(`insert into documents1 (num) values (2);`);
-          await client.query(`insert into documents1 (num) values (3);`);
-          await client.query(`insert into documents1 (num) values (4);`);
-          await client.query(`insert into documents1 (num) values (5);`);
-          await client.query(`insert into documents1 (num) values (6);`);
-          await delay(5);
+          await c.query(`insert into documents1 (num) values (1);`);
+          await c.query(`insert into documents1 (num) values (2);`);
+          await c.query(`insert into documents1 (num) values (3);`);
+          await c.query(`insert into documents1 (num) values (4);`);
+          await c.query(`insert into documents1 (num) values (5);`);
+          await c.query(`insert into documents1 (num) values (6);`);
+          await update();
         },
         async () => {
-          await client.query(`insert into documents1 (id,num) values (9,3);`);
-          await delay(5);
+          await c.query(`insert into documents1 (id,num) values (9,3);`);
+          await update();
         },
         async () => {
-          await client.query(`update documents1 set num = 5 where id = 3;`);
-          await delay(5);
+          await c.query(`update documents1 set num = 5 where id = 3;`);
+          await update();
         },
         async () => {
-          await client.query(`update documents1 set num = 6 where id = 3;`);
-          await delay(5);
+          await c.query(`update documents1 set num = 6 where id = 3;`);
+          await update();
         },
         async () => {
-          await client.query(`update documents1 set num = 3 where id = 4;`);
-          await delay(5);
+          await c.query(`update documents1 set num = 3 where id = 4;`);
+          await update();
         },
         async () => {
-          await client.query(`delete from documents1 where id = 4;`);
-          await delay(5);
+          await c.query(`delete from documents1 where id = 4;`);
+          await update();
         },
       );
 
-      await adapter.stop();
-    });
-
-    it('truncate', async () => {
-      const _e = [];
-
-      const adapter = new Adapter('abc');
-
-
-      await adapter.start({ client, triggers });
-
-      const tracker = new Tracker();
-
-
-      const exp = order => ['select',
-        ['returns'],
-        ['from',['alias','documents1']],
-        ['and',
-          ['gt',['path','documents1','num'],['data',2]],
-          ['lt',['path','documents1','num'],['data',6]],
-        ],
-        ['orders',['order',['path','documents1','num'],order],['order',['path','documents1','id'],true]],
-        ['limit',2],
-      ];
-
-      const q = (order = true) => ({
-        triggers,
-        fetchQuery: babilon({ resolver, validators, exp: exp(order) }).result,
-        trackQuery: babilon({ resolver, validators, exp: returnsReferences(exp(order), generateReturnsAs()) }).result,
-      });
-
-      await delay(5);
-
-      tracker.init(adapter.track(q(true)));
-
-      await tracker.subscribe();
-      
-      assert.deepEqual(tracker.ids, []);
-      assert.deepEqual(tracker.memory, {
-      });
-
-      await client.query(`insert into documents1 (num) values (1);`);
-      await client.query(`insert into documents1 (num) values (2);`);
-      await client.query(`insert into documents1 (num) values (3);`);
-      await client.query(`insert into documents1 (num) values (4);`);
-      await client.query(`insert into documents1 (num) values (5);`);
-      await client.query(`insert into documents1 (num) values (6);`);
-
-      await delay(5);
-  
-      assert.deepEqual(tracker.ids, [3,4]);
-      assert.deepEqual(tracker.memory, {
-        3: { id: 3, num: 3 },
-        4: { id: 4, num: 4 },
-      });
-
-      await client.query(`truncate documents1;`);
-
-      await delay(5);
-  
-      assert.deepEqual(tracker.ids, []);
-      assert.deepEqual(tracker.memory, {});
-
-      await tracker.unsubscribe();
-      tracker.destroy();
-
-      await adapter.stop();
+      await client.stop();
+      await delay(10);
     });
   });
 };

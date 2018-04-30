@@ -11,7 +11,6 @@ export class Triggers {
       id SERIAL PRIMARY KEY,
       trackerId TEXT,
       channel TEXT,
-      fetchQuery TEXT,
       trackQuery TEXT,
       tracked TEXT
     );`;
@@ -59,20 +58,14 @@ export class Triggers {
             string_agg ($$(
               SELECT
                 oneTracking.trackerId,
-                oneTracking.channel,
-                oneTracking.fetched
+                oneTracking.channel
               FROM (
                 (
                   SELECT
                     '$$ || ${this._tracks}.trackerId || $$' AS trackerId,
-                    '$$ || ${this._tracks}.channel || $$' AS channel,
-                    fetchResults.fetched AS fetched
+                    '$$ || ${this._tracks}.channel || $$' AS channel
                   FROM
-                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults,
-                    (
-                      SELECT array_agg(fetchQuery) AS fetched
-                      FROM ($$ || ${this._tracks}.fetchQuery || $$) AS fetchQuery
-                    ) AS fetchResults
+                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults
                   WHERE
                     trackResults.id = '$$ || NEW.id || $$' and
                     trackResults.from = '$$ || TG_TABLE_NAME || $$'
@@ -81,14 +74,9 @@ export class Triggers {
                 (
                   SELECT
                     '$$ || ${this._tracks}.trackerId || $$' AS trackerId,
-                    '$$ || ${this._tracks}.channel || $$' AS channel,
-                    fetchResults.fetched AS fetched
+                    '$$ || ${this._tracks}.channel || $$' AS channel
                   FROM
-                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults,
-                    (
-                      SELECT array_agg(fetchQuery) AS fetched
-                      FROM ($$ || ${this._tracks}.fetchQuery || $$) AS fetchQuery
-                    ) AS fetchResults
+                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults
                   WHERE
                     '$$ || '"(' || TG_TABLE_NAME || $$,$$ || NEW.id || ')"' || $$' IN ($$ || ${this._tracks}.tracked || $$)
                 )
@@ -99,13 +87,10 @@ export class Triggers {
           FROM ${this._tracks}
         )
         LOOP
-          IF currentTracking.fetched IS NULL THEN
-            currentTracking.fetched := array[''];
-          END IF;
           UPDATE ${this._tracks} SET tracked = '' WHERE trackerId = currentTracking.trackerId;
           PERFORM pg_notify (
             currentTracking.channel, 
-            '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "trackerId": "' ||currentTracking.trackerId || '", "fetched": ' || array_to_json(currentTracking.fetched) || ', "event": "' || TG_OP || '" }'
+            '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "trackerId": "' ||currentTracking.trackerId || '", "event": "' || TG_OP || '" }'
           );
         END LOOP;
         RETURN NEW;
@@ -127,20 +112,14 @@ export class Triggers {
             string_agg ($$(
               SELECT
                 oneTracking.trackerId,
-                oneTracking.channel,
-                oneTracking.fetched
+                oneTracking.channel
               FROM (
                 (
                   SELECT
                     '$$ || ${this._tracks}.trackerId || $$' AS trackerId,
-                    '$$ || ${this._tracks}.channel || $$' AS channel,
-                    fetchResults.fetched AS fetched
+                    '$$ || ${this._tracks}.channel || $$' AS channel
                   FROM
-                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults,
-                    (
-                      SELECT array_agg(fetchQuery) AS fetched
-                      FROM ($$ || ${this._tracks}.fetchQuery || $$) AS fetchQuery
-                    ) AS fetchResults
+                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults
                   WHERE
                     trackResults.id = '$$ || OLD.id || $$' and
                     trackResults.from = '$$ || TG_TABLE_NAME || $$'
@@ -149,14 +128,9 @@ export class Triggers {
                 (
                   SELECT
                     '$$ || ${this._tracks}.trackerId || $$' AS trackerId,
-                    '$$ || ${this._tracks}.channel || $$' AS channel,
-                    fetchResults.fetched AS fetched
+                    '$$ || ${this._tracks}.channel || $$' AS channel
                   FROM
-                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults,
-                    (
-                      SELECT array_agg(fetchQuery) AS fetched
-                      FROM ($$ || ${this._tracks}.fetchQuery || $$) AS fetchQuery
-                    ) AS fetchResults
+                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults
                   WHERE
                     '$$ || '"(' || TG_TABLE_NAME || $$,$$ || OLD.id || ')"' || $$' IN ($$ || ${this._tracks}.tracked || $$)
                 )
@@ -167,13 +141,10 @@ export class Triggers {
           FROM ${this._tracks}
         )
         LOOP
-          IF currentTracking.fetched IS NULL THEN
-            currentTracking.fetched := array[''];
-          END IF;
           UPDATE ${this._tracks} SET tracked = '' WHERE trackerId = currentTracking.trackerId;
           PERFORM pg_notify (
             currentTracking.channel, 
-            '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || OLD.id || ', "trackerId": "' ||currentTracking.trackerId || '", "fetched": ' || array_to_json(currentTracking.fetched) || ', "event": "' || TG_OP || '" }'
+            '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || OLD.id || ', "trackerId": "' ||currentTracking.trackerId || '", "event": "' || TG_OP || '" }'
           );
         END LOOP;
         RETURN OLD;
@@ -195,20 +166,14 @@ export class Triggers {
             string_agg ($$(
               SELECT
                 oneTracking.trackerId,
-                oneTracking.channel,
-                oneTracking.fetched
+                oneTracking.channel
               FROM (
                 (
                   SELECT
                     '$$ || ${this._tracks}.trackerId || $$' AS trackerId,
-                    '$$ || ${this._tracks}.channel || $$' AS channel,
-                    fetchResults.fetched AS fetched
+                    '$$ || ${this._tracks}.channel || $$' AS channel
                   FROM
-                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults,
-                    (
-                      SELECT array_agg(fetchQuery) AS fetched
-                      FROM ($$ || ${this._tracks}.fetchQuery || $$) AS fetchQuery
-                    ) AS fetchResults
+                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults
                   WHERE
                     trackResults.from = '$$ || TG_TABLE_NAME || $$'
                 )
@@ -216,16 +181,11 @@ export class Triggers {
                 (
                   SELECT 
                     '$$ || ${this._tracks}.trackerId || $$' as trackerId, 
-                    '$$ || ${this._tracks}.channel || $$' as channel, 
-                    fetchResults.fetched as fetched
+                    '$$ || ${this._tracks}.channel || $$' as channel
                   FROM (
                     SELECT $s_a$'$s_a$ || string_agg('"'||trackQuery.id||'/'||trackQuery.from||'"', $s_a$', '$s_a$) || $s_a$'$s_a$ as track 
                     FROM ($$ || ${this._tracks}.trackQuery || $$) as trackQuery
-                  ) as liveResults,
-                  (
-                    SELECT array_agg (fetchQuery) as fetched 
-                    FROM ($$ || ${this._tracks}.fetchQuery || $$) as fetchQuery
-                  ) as fetchResults
+                  ) as liveResults
                   WHERE 
                     liveResults.track is null or
                     liveResults.track <> $$ || '$$' || ${this._tracks}.tracked || '$$' || $$
@@ -238,17 +198,10 @@ export class Triggers {
         )
         LOOP
           UPDATE ${this._tracks} SET tracked = '' WHERE trackerId = currentTracking.trackerId;
-          IF currentTracking.fetched IS NULL THEN
-            PERFORM pg_notify (
-              currentTracking.channel,
-              '{ "table": "' || TG_TABLE_NAME || E'", "trackerId": "' || currentTracking.trackerId || '", "fetched": [], "event": "' || TG_OP || '"}'
-            );
-          ELSE
-            PERFORM pg_notify (
-              currentTracking.channel, 
-              '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "trackerId": "' ||currentTracking.trackerId || '", "fetched": ' || array_to_json(currentTracking.fetched) || ', "event": "' || TG_OP || '" }'
-            );
-          END IF;
+          PERFORM pg_notify (
+            currentTracking.channel, 
+            '{ "table": "' || TG_TABLE_NAME || E'", "trackerId": "' ||currentTracking.trackerId || '", "event": "' || TG_OP || '" }'
+          );
           END LOOP;
         RETURN NEW;
       END; $trigger$ LANGUAGE plpgsql;

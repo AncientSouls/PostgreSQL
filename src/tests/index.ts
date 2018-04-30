@@ -2,7 +2,8 @@ import 'mocha';
 require('source-map-support').install();
 
 import babilon from './babilon';
-import adapter from './adapter';
+import client from './client';
+import asketic from './asketic';
 
 describe('AncientSouls/PostgreSQL:', () => {
   if (!process.env.DEVELOP) {
@@ -11,5 +12,6 @@ describe('AncientSouls/PostgreSQL:', () => {
     });
   }
   babilon();
-  adapter();
+  client();
+  asketic();
 });

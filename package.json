@@ -18,9 +18,10 @@
     "pg-terminal": "docker run -it --rm --link postgres:postgres postgres psql -h postgres -U postgres"
   },
   "dependencies": {
+    "ancient-asket": "^0.1.5",
     "ancient-babilon": "0.0.10",
     "ancient-mixins": "0.0.12",
-    "ancient-tracker": "^0.1.1",
+    "ancient-tracker": "^0.2.2",
     "chai": "^4.1.2",
     "lodash": "^4.17.5",
     "pg": "^7.4.1",
