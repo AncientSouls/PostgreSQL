@@ -49,32 +49,34 @@ import {
   Cursor,
 } from 'ancient-cursor/lib/cursor';
 
+import { Triggers } from '../lib/triggers';
+
 const babilonResolver = createResolver(resolverOptions);
 
 const delay = async time => new Promise(res => setTimeout(res, time));
 
-import { Triggers } from '../lib/triggers';
+const testTableName = `test${process.env['TRAVIS_JOB_ID'] || ''}`;
 
 export default () => { 
-  describe('Asketic', () => {
+  describe(`Asketic`, () => {
     let c;
     const triggers = new Triggers();
 
     const cleaning = async () => {
       await c.query(`
-        drop table if exists documents1;
+        drop table if exists ${testTableName};
       `);
 
       await c.query(triggers.deinit());
-      await c.query(triggers.unwrap('documents1'));
+      await c.query(triggers.unwrap(`${testTableName}`));
     };
 
     beforeEach(async () => {
       c = new pg.Client({
-        user: 'postgres',
-        host: 'localhost',
-        database: 'postgres',
-        password: 'postgres',
+        user: `postgres`,
+        host: `localhost`,
+        database: `postgres`,
+        password: ``,
         port: 5432,
       });
       
@@ -83,14 +85,14 @@ export default () => {
       await cleaning();
 
       await c.query(`
-        create table if not exists documents1 (
+        create table if not exists ${testTableName} (
           id serial PRIMARY KEY,
           num int default 0
         );
       `);
 
       await c.query(triggers.init());
-      await c.query(triggers.wrap('documents1'));
+      await c.query(triggers.wrap(`${testTableName}`));
     });
     
     afterEach(async () => {
@@ -98,7 +100,7 @@ export default () => {
       await c.end();
     });
 
-    it('lifecycle', async () => {
+    it(`lifecycle`, async () => {
       const client = new Client();
       client.client = {
         triggers,
@@ -112,45 +114,45 @@ export default () => {
         query,
         next: asket,
         resolver: async (flow) => {
-          if (flow.name === 'a' && flow.env.type === 'root') {
+          if (flow.name === `a` && flow.env.type === `root`) {
             const tracker = new Tracker();
-            tracker.idField = 'id';
+            tracker.idField = `id`;
             tracker.query = trackerQuery(expAll, {});
             client.add(tracker);
             return asketic.flowTracker(flow, tracker);
           }
-          if (flow.name === 'b' && flow.env.type === 'item') {
+          if (flow.name === `b` && flow.env.type === `item`) {
             const tracker = new Tracker();
-            tracker.idField = 'id';
+            tracker.idField = `id`;
             tracker.query = trackerQuery(expEqual, { num: flow.env.item.num });
             client.add(tracker);
             return asketic.flowTracker(flow, tracker);
           }
           // msut be writed in asketic compatibly resolver
-          if (flow.env.type === 'items') return asketic.flowItem(flow);
+          if (flow.env.type === `items`) return asketic.flowItem(flow);
           return asketic.flowValue(flow);
         },
       };
 
 
-      const expAll = ['select',
-        ['returns'],
-        ['from',['alias','documents1']],
-        ['and',
-          ['gt',['path','documents1','num'],['data',2]],
-          ['lt',['path','documents1','num'],['data',6]],
+      const expAll = [`select`,
+        [`returns`],
+        [`from`,[`alias`,`${testTableName}`]],
+        [`and`,
+          [`gt`,[`path`,`${testTableName}`,`num`],[`data`,2]],
+          [`lt`,[`path`,`${testTableName}`,`num`],[`data`,6]],
         ],
-        ['orders',['order',['path','documents1','num'],true],['order',['path','documents1','id'],true]],
-        ['limit',2],
+        [`orders`,[`order`,[`path`,`${testTableName}`,`num`],true],[`order`,[`path`,`${testTableName}`,`id`],true]],
+        [`limit`,2],
       ];
 
-      const expEqual = ['select',
-        ['returns'],
-        ['from',['alias','documents1']],
-        ['and',
-          ['eq',['path','documents1','num'],['variable','num']],
+      const expEqual = [`select`,
+        [`returns`],
+        [`from`,[`alias`,`${testTableName}`]],
+        [`and`,
+          [`eq`,[`path`,`${testTableName}`,`num`],[`variable`,`num`]],
         ],
-        ['orders',['order',['path','documents1','num'],true],['order',['path','documents1','id'],true]],
+        [`orders`,[`order`,[`path`,`${testTableName}`,`num`],true],[`order`,[`path`,`${testTableName}`,`id`],true]],
       ];
 
       const trackerQuery = (exp, variables) => ({
@@ -173,32 +175,32 @@ export default () => {
       await test(
         cursor,
         async () => {
-          await c.query(`insert into documents1 (num) values (1);`);
-          await c.query(`insert into documents1 (num) values (2);`);
-          await c.query(`insert into documents1 (num) values (3);`);
-          await c.query(`insert into documents1 (num) values (4);`);
-          await c.query(`insert into documents1 (num) values (5);`);
-          await c.query(`insert into documents1 (num) values (6);`);
+          await c.query(`insert into ${testTableName} (num) values (1);`);
+          await c.query(`insert into ${testTableName} (num) values (2);`);
+          await c.query(`insert into ${testTableName} (num) values (3);`);
+          await c.query(`insert into ${testTableName} (num) values (4);`);
+          await c.query(`insert into ${testTableName} (num) values (5);`);
+          await c.query(`insert into ${testTableName} (num) values (6);`);
           await update();
         },
         async () => {
-          await c.query(`insert into documents1 (id,num) values (9,3);`);
+          await c.query(`insert into ${testTableName} (id,num) values (9,3);`);
           await update();
         },
         async () => {
-          await c.query(`update documents1 set num = 5 where id = 3;`);
+          await c.query(`update ${testTableName} set num = 5 where id = 3;`);
           await update();
         },
         async () => {
-          await c.query(`update documents1 set num = 6 where id = 3;`);
+          await c.query(`update ${testTableName} set num = 6 where id = 3;`);
           await update();
         },
         async () => {
-          await c.query(`update documents1 set num = 3 where id = 4;`);
+          await c.query(`update ${testTableName} set num = 3 where id = 4;`);
           await update();
         },
         async () => {
-          await c.query(`delete from documents1 where id = 4;`);
+          await c.query(`delete from ${testTableName} where id = 4;`);
           await update();
         },
       );

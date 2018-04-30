@@ -20,44 +20,45 @@ const test_1 = require("ancient-tracker/tests/test");
 const returns_references_1 = require("ancient-babilon/lib/returns-references");
 const rules_full_1 = require("../lib/rules-full");
 const cursor_1 = require("ancient-cursor/lib/cursor");
+const triggers_1 = require("../lib/triggers");
 const babilonResolver = rules_full_1.createResolver(rules_full_1.resolverOptions);
 const delay = (time) => __awaiter(this, void 0, void 0, function* () { return new Promise(res => setTimeout(res, time)); });
-const triggers_1 = require("../lib/triggers");
+const testTableName = `test${process.env['TRAVIS_JOB_ID'] || ''}`;
 exports.default = () => {
-    describe('Asketic', () => {
+    describe(`Asketic`, () => {
         let c;
         const triggers = new triggers_1.Triggers();
         const cleaning = () => __awaiter(this, void 0, void 0, function* () {
             yield c.query(`
-        drop table if exists documents1;
+        drop table if exists ${testTableName};
       `);
             yield c.query(triggers.deinit());
-            yield c.query(triggers.unwrap('documents1'));
+            yield c.query(triggers.unwrap(`${testTableName}`));
         });
         beforeEach(() => __awaiter(this, void 0, void 0, function* () {
             c = new pg.Client({
-                user: 'postgres',
-                host: 'localhost',
-                database: 'postgres',
-                password: 'postgres',
+                user: `postgres`,
+                host: `localhost`,
+                database: `postgres`,
+                password: ``,
                 port: 5432,
             });
             yield c.connect();
             yield cleaning();
             yield c.query(`
-        create table if not exists documents1 (
+        create table if not exists ${testTableName} (
           id serial PRIMARY KEY,
           num int default 0
         );
       `);
             yield c.query(triggers.init());
-            yield c.query(triggers.wrap('documents1'));
+            yield c.query(triggers.wrap(`${testTableName}`));
         }));
         afterEach(() => __awaiter(this, void 0, void 0, function* () {
             yield cleaning();
             yield c.end();
         }));
-        it('lifecycle', () => __awaiter(this, void 0, void 0, function* () {
+        it(`lifecycle`, () => __awaiter(this, void 0, void 0, function* () {
             const client = new client_1.Client();
             client.client = {
                 triggers,
@@ -69,42 +70,42 @@ exports.default = () => {
                 query: test_1.query,
                 next: asket_1.asket,
                 resolver: (flow) => __awaiter(this, void 0, void 0, function* () {
-                    if (flow.name === 'a' && flow.env.type === 'root') {
+                    if (flow.name === `a` && flow.env.type === `root`) {
                         const tracker = new tracker_1.Tracker();
-                        tracker.idField = 'id';
+                        tracker.idField = `id`;
                         tracker.query = trackerQuery(expAll, {});
                         client.add(tracker);
                         return asketic.flowTracker(flow, tracker);
                     }
-                    if (flow.name === 'b' && flow.env.type === 'item') {
+                    if (flow.name === `b` && flow.env.type === `item`) {
                         const tracker = new tracker_1.Tracker();
-                        tracker.idField = 'id';
+                        tracker.idField = `id`;
                         tracker.query = trackerQuery(expEqual, { num: flow.env.item.num });
                         client.add(tracker);
                         return asketic.flowTracker(flow, tracker);
                     }
-                    if (flow.env.type === 'items')
+                    if (flow.env.type === `items`)
                         return asketic.flowItem(flow);
                     return asketic.flowValue(flow);
                 }),
             };
-            const expAll = ['select',
-                ['returns'],
-                ['from', ['alias', 'documents1']],
-                ['and',
-                    ['gt', ['path', 'documents1', 'num'], ['data', 2]],
-                    ['lt', ['path', 'documents1', 'num'], ['data', 6]],
+            const expAll = [`select`,
+                [`returns`],
+                [`from`, [`alias`, `${testTableName}`]],
+                [`and`,
+                    [`gt`, [`path`, `${testTableName}`, `num`], [`data`, 2]],
+                    [`lt`, [`path`, `${testTableName}`, `num`], [`data`, 6]],
                 ],
-                ['orders', ['order', ['path', 'documents1', 'num'], true], ['order', ['path', 'documents1', 'id'], true]],
-                ['limit', 2],
+                [`orders`, [`order`, [`path`, `${testTableName}`, `num`], true], [`order`, [`path`, `${testTableName}`, `id`], true]],
+                [`limit`, 2],
             ];
-            const expEqual = ['select',
-                ['returns'],
-                ['from', ['alias', 'documents1']],
-                ['and',
-                    ['eq', ['path', 'documents1', 'num'], ['variable', 'num']],
+            const expEqual = [`select`,
+                [`returns`],
+                [`from`, [`alias`, `${testTableName}`]],
+                [`and`,
+                    [`eq`, [`path`, `${testTableName}`, `num`], [`variable`, `num`]],
                 ],
-                ['orders', ['order', ['path', 'documents1', 'num'], true], ['order', ['path', 'documents1', 'id'], true]],
+                [`orders`, [`order`, [`path`, `${testTableName}`, `num`], true], [`order`, [`path`, `${testTableName}`, `id`], true]],
             ];
             const trackerQuery = (exp, variables) => ({
                 fetchQuery: babilon_1.babilon({ validators: rules_full_1.validators, variables, exp, resolver: babilonResolver }).result,
@@ -119,27 +120,27 @@ exports.default = () => {
                 _.each(bundles, bundle => cursor.apply(bundle));
             });
             yield test_1.test(cursor, () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`insert into documents1 (num) values (1);`);
-                yield c.query(`insert into documents1 (num) values (2);`);
-                yield c.query(`insert into documents1 (num) values (3);`);
-                yield c.query(`insert into documents1 (num) values (4);`);
-                yield c.query(`insert into documents1 (num) values (5);`);
-                yield c.query(`insert into documents1 (num) values (6);`);
+                yield c.query(`insert into ${testTableName} (num) values (1);`);
+                yield c.query(`insert into ${testTableName} (num) values (2);`);
+                yield c.query(`insert into ${testTableName} (num) values (3);`);
+                yield c.query(`insert into ${testTableName} (num) values (4);`);
+                yield c.query(`insert into ${testTableName} (num) values (5);`);
+                yield c.query(`insert into ${testTableName} (num) values (6);`);
                 yield update();
             }), () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`insert into documents1 (id,num) values (9,3);`);
+                yield c.query(`insert into ${testTableName} (id,num) values (9,3);`);
                 yield update();
             }), () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`update documents1 set num = 5 where id = 3;`);
+                yield c.query(`update ${testTableName} set num = 5 where id = 3;`);
                 yield update();
             }), () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`update documents1 set num = 6 where id = 3;`);
+                yield c.query(`update ${testTableName} set num = 6 where id = 3;`);
                 yield update();
             }), () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`update documents1 set num = 3 where id = 4;`);
+                yield c.query(`update ${testTableName} set num = 3 where id = 4;`);
                 yield update();
             }), () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`delete from documents1 where id = 4;`);
+                yield c.query(`delete from ${testTableName} where id = 4;`);
                 yield update();
             }));
             yield client.stop();
