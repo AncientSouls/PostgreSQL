@@ -22,7 +22,7 @@ describe('AncientSouls/PostgreSQL:', () => {
     try { await execa.shell(`docker stop postgres${port}`); } catch (error) {}
     try { await execa.shell(`docker rm postgres${port}`); } catch (error) {}
     await execa.shell(`docker pull postgres`);
-    await execa.shell(`docker run --name postgres${port} -d -p 5432:${port} postgres`);
+    await execa.shell(`docker run --name postgres${port} -d -p ${port}:5432 postgres`);
     
     await delay(10000);
     

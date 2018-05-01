@@ -25,11 +25,14 @@ describe('AncientSouls/PostgreSQL:', () => {
     before(() => __awaiter(this, void 0, void 0, function* () {
         try {
             yield execa.shell(`docker stop postgres${port}`);
+        }
+        catch (error) { }
+        try {
             yield execa.shell(`docker rm postgres${port}`);
         }
         catch (error) { }
         yield execa.shell(`docker pull postgres`);
-        yield execa.shell(`docker run --name postgres${port} -d -p 5432:${port} postgres`);
+        yield execa.shell(`docker run --name postgres${port} -d -p ${port}:5432 postgres`);
         yield delay(10000);
         env.client = new pg.Client({
             port,
@@ -41,8 +44,15 @@ describe('AncientSouls/PostgreSQL:', () => {
         yield env.client.connect();
     }));
     after(() => __awaiter(this, void 0, void 0, function* () {
-        yield execa.shell(`docker stop postgres${port}`);
-        yield execa.shell(`docker rm postgres${port}`);
+        yield env.client.end();
+        try {
+            yield execa.shell(`docker stop postgres${port}`);
+        }
+        catch (error) { }
+        try {
+            yield execa.shell(`docker rm postgres${port}`);
+        }
+        catch (error) { }
     }));
     babilon_1.default();
     client_1.default(env);
