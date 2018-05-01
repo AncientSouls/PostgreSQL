@@ -27,7 +27,7 @@ import {
   createResolver,
   resolverOptions,
   validators,
-} from '../lib/rules-full';
+} from '../lib/rules-track';
 
 import { Triggers } from '../lib/triggers';
 
