@@ -9,7 +9,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const _ = require("lodash");
-const pg = require("pg");
 const babilon_1 = require("ancient-babilon/lib/babilon");
 const client_1 = require("../lib/client");
 const tracker_1 = require("ancient-tracker/lib/tracker");
@@ -23,46 +22,36 @@ const cursor_1 = require("ancient-cursor/lib/cursor");
 const triggers_1 = require("../lib/triggers");
 const babilonResolver = rules_full_1.createResolver(rules_full_1.resolverOptions);
 const delay = (time) => __awaiter(this, void 0, void 0, function* () { return new Promise(res => setTimeout(res, time)); });
-const testTableName = `test${process.env['TRAVIS_JOB_ID'] || ''}`;
-exports.default = () => {
+const testTableName = `test`;
+exports.default = (env) => {
     describe(`Asketic`, () => {
-        let c;
         const triggers = new triggers_1.Triggers();
         const cleaning = () => __awaiter(this, void 0, void 0, function* () {
-            yield c.query(`
+            yield env.client.query(`
         drop table if exists ${testTableName};
       `);
-            yield c.query(triggers.deinit());
-            yield c.query(triggers.unwrap(`${testTableName}`));
+            yield env.client.query(triggers.deinit());
+            yield env.client.query(triggers.unwrap(`${testTableName}`));
         });
         beforeEach(() => __awaiter(this, void 0, void 0, function* () {
-            c = new pg.Client({
-                user: `postgres`,
-                host: `localhost`,
-                database: `postgres`,
-                password: ``,
-                port: 5432,
-            });
-            yield c.connect();
             yield cleaning();
-            yield c.query(`
+            yield env.client.query(`
         create table if not exists ${testTableName} (
           id serial PRIMARY KEY,
           num int default 0
         );
       `);
-            yield c.query(triggers.init());
-            yield c.query(triggers.wrap(`${testTableName}`));
+            yield env.client.query(triggers.init());
+            yield env.client.query(triggers.wrap(`${testTableName}`));
         }));
         afterEach(() => __awaiter(this, void 0, void 0, function* () {
             yield cleaning();
-            yield c.end();
         }));
         it(`lifecycle`, () => __awaiter(this, void 0, void 0, function* () {
             const client = new client_1.Client();
             client.client = {
                 triggers,
-                pg: c,
+                pg: env.client,
             };
             yield client.start();
             const asketic = new asketic_1.Asketic();
@@ -120,27 +109,27 @@ exports.default = () => {
                 _.each(bundles, bundle => cursor.apply(bundle));
             });
             yield test_1.test(cursor, () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`insert into ${testTableName} (num) values (1);`);
-                yield c.query(`insert into ${testTableName} (num) values (2);`);
-                yield c.query(`insert into ${testTableName} (num) values (3);`);
-                yield c.query(`insert into ${testTableName} (num) values (4);`);
-                yield c.query(`insert into ${testTableName} (num) values (5);`);
-                yield c.query(`insert into ${testTableName} (num) values (6);`);
+                yield env.client.query(`insert into ${testTableName} (num) values (1);`);
+                yield env.client.query(`insert into ${testTableName} (num) values (2);`);
+                yield env.client.query(`insert into ${testTableName} (num) values (3);`);
+                yield env.client.query(`insert into ${testTableName} (num) values (4);`);
+                yield env.client.query(`insert into ${testTableName} (num) values (5);`);
+                yield env.client.query(`insert into ${testTableName} (num) values (6);`);
                 yield update();
             }), () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`insert into ${testTableName} (id,num) values (9,3);`);
+                yield env.client.query(`insert into ${testTableName} (id,num) values (9,3);`);
                 yield update();
             }), () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`update ${testTableName} set num = 5 where id = 3;`);
+                yield env.client.query(`update ${testTableName} set num = 5 where id = 3;`);
                 yield update();
             }), () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`update ${testTableName} set num = 6 where id = 3;`);
+                yield env.client.query(`update ${testTableName} set num = 6 where id = 3;`);
                 yield update();
             }), () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`update ${testTableName} set num = 3 where id = 4;`);
+                yield env.client.query(`update ${testTableName} set num = 3 where id = 4;`);
                 yield update();
             }), () => __awaiter(this, void 0, void 0, function* () {
-                yield c.query(`delete from ${testTableName} where id = 4;`);
+                yield env.client.query(`delete from ${testTableName} where id = 4;`);
                 yield update();
             }));
             yield client.stop();

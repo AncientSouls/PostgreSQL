@@ -6,7 +6,7 @@ import {
   resolverOptions as _resolverOptions,
 } from 'ancient-babilon/lib/proto-sql';
 import { createValidators } from 'ancient-babilon/lib/validators';
-import { rules as _rules } from 'ancient-babilon/lib/rules';
+import { rules as _rules, IRules } from 'ancient-babilon/lib/rules';
 
 export const rules = _.cloneDeep(_rules);
 

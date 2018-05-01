@@ -1,4 +1,5 @@
-export declare const rules: any;
+import { IRules } from 'ancient-babilon/lib/rules';
+export declare const rules: IRules;
 export declare const validators: {};
 export declare const resolverOptions: {
     _column(name: any): string;

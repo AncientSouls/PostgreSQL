@@ -1,6 +1,5 @@
 import * as _ from 'lodash';
 import { assert } from 'chai';
-import * as pg from 'pg';
 
 import {
   babilon,
@@ -55,56 +54,44 @@ const babilonResolver = createResolver(resolverOptions);
 
 const delay = async time => new Promise(res => setTimeout(res, time));
 
-const testTableName = `test${process.env['TRAVIS_JOB_ID'] || ''}`;
+const testTableName = `test`;
 
-export default () => { 
+export default (env) => { 
   describe(`Asketic`, () => {
-    let c;
     const triggers = new Triggers();
 
     const cleaning = async () => {
-      await c.query(`
+      await env.client.query(`
         drop table if exists ${testTableName};
       `);
 
-      await c.query(triggers.deinit());
-      await c.query(triggers.unwrap(`${testTableName}`));
+      await env.client.query(triggers.deinit());
+      await env.client.query(triggers.unwrap(`${testTableName}`));
     };
 
     beforeEach(async () => {
-      c = new pg.Client({
-        user: `postgres`,
-        host: `localhost`,
-        database: `postgres`,
-        password: ``,
-        port: 5432,
-      });
-      
-      await c.connect();
-
       await cleaning();
 
-      await c.query(`
+      await env.client.query(`
         create table if not exists ${testTableName} (
           id serial PRIMARY KEY,
           num int default 0
         );
       `);
 
-      await c.query(triggers.init());
-      await c.query(triggers.wrap(`${testTableName}`));
+      await env.client.query(triggers.init());
+      await env.client.query(triggers.wrap(`${testTableName}`));
     });
     
     afterEach(async () => {
       await cleaning();
-      await c.end();
     });
 
     it(`lifecycle`, async () => {
       const client = new Client();
       client.client = {
         triggers,
-        pg: c,
+        pg: env.client,
       };
       await client.start();
 
@@ -175,32 +162,32 @@ export default () => {
       await test(
         cursor,
         async () => {
-          await c.query(`insert into ${testTableName} (num) values (1);`);
-          await c.query(`insert into ${testTableName} (num) values (2);`);
-          await c.query(`insert into ${testTableName} (num) values (3);`);
-          await c.query(`insert into ${testTableName} (num) values (4);`);
-          await c.query(`insert into ${testTableName} (num) values (5);`);
-          await c.query(`insert into ${testTableName} (num) values (6);`);
+          await env.client.query(`insert into ${testTableName} (num) values (1);`);
+          await env.client.query(`insert into ${testTableName} (num) values (2);`);
+          await env.client.query(`insert into ${testTableName} (num) values (3);`);
+          await env.client.query(`insert into ${testTableName} (num) values (4);`);
+          await env.client.query(`insert into ${testTableName} (num) values (5);`);
+          await env.client.query(`insert into ${testTableName} (num) values (6);`);
           await update();
         },
         async () => {
-          await c.query(`insert into ${testTableName} (id,num) values (9,3);`);
+          await env.client.query(`insert into ${testTableName} (id,num) values (9,3);`);
           await update();
         },
         async () => {
-          await c.query(`update ${testTableName} set num = 5 where id = 3;`);
+          await env.client.query(`update ${testTableName} set num = 5 where id = 3;`);
           await update();
         },
         async () => {
-          await c.query(`update ${testTableName} set num = 6 where id = 3;`);
+          await env.client.query(`update ${testTableName} set num = 6 where id = 3;`);
           await update();
         },
         async () => {
-          await c.query(`update ${testTableName} set num = 3 where id = 4;`);
+          await env.client.query(`update ${testTableName} set num = 3 where id = 4;`);
           await update();
         },
         async () => {
-          await c.query(`delete from ${testTableName} where id = 4;`);
+          await env.client.query(`delete from ${testTableName} where id = 4;`);
           await update();
         },
       );
