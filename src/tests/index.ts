@@ -2,7 +2,6 @@ import 'mocha';
 require('source-map-support').install();
 import * as execa from 'execa';
 import * as pg from 'pg';
-import { exec } from 'shelljs';
 
 import babilon from './babilon';
 import client from './client';
