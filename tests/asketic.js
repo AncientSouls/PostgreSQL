@@ -17,10 +17,10 @@ const asketic_1 = require("ancient-tracker/lib/asketic");
 const bundles_1 = require("ancient-tracker/lib/bundles");
 const test_1 = require("ancient-tracker/tests/test");
 const returns_references_1 = require("ancient-babilon/lib/returns-references");
-const rules_full_1 = require("../lib/rules-full");
+const rules_track_1 = require("../lib/rules-track");
 const cursor_1 = require("ancient-cursor/lib/cursor");
 const triggers_1 = require("../lib/triggers");
-const babilonResolver = rules_full_1.createResolver(rules_full_1.resolverOptions);
+const babilonResolver = rules_track_1.createResolver(rules_track_1.resolverOptions);
 const delay = (time) => __awaiter(this, void 0, void 0, function* () { return new Promise(res => setTimeout(res, time)); });
 const testTableName = `test`;
 exports.default = (env) => {
@@ -97,8 +97,8 @@ exports.default = (env) => {
                 [`orders`, [`order`, [`path`, `${testTableName}`, `num`], true], [`order`, [`path`, `${testTableName}`, `id`], true]],
             ];
             const trackerQuery = (exp, variables) => ({
-                fetchQuery: babilon_1.babilon({ validators: rules_full_1.validators, variables, exp, resolver: babilonResolver }).result,
-                trackQuery: babilon_1.babilon({ validators: rules_full_1.validators, variables, exp: returns_references_1.returnsReferences(exp, returns_references_1.generateReturnsAs()), resolver: babilonResolver }).result,
+                fetchQuery: babilon_1.babilon({ validate: rules_track_1.validate, variables, exp, resolver: babilonResolver }).result,
+                trackQuery: babilon_1.babilon({ validate: rules_track_1.validate, variables, exp: returns_references_1.returnsReferences(exp, returns_references_1.generateReturnsAs()), resolver: babilonResolver }).result,
             });
             const cursor = new cursor_1.Cursor();
             const result = yield asketic.next(flow);

@@ -26,7 +26,7 @@ import {
 import {
   createResolver,
   resolverOptions,
-  validators,
+  validate,
 } from '../lib/rules-track';
 
 import { Triggers } from '../lib/triggers';
@@ -90,8 +90,8 @@ export default (env) => {
       ];
 
       const trackerQuery = (order = true) => ({
-        fetchQuery: babilon({ resolver, validators, exp: exp(order) }).result,
-        trackQuery: babilon({ resolver, validators, exp: returnsReferences(exp(order), generateReturnsAs()) }).result,
+        fetchQuery: babilon({ resolver, validate, exp: exp(order) }).result,
+        trackQuery: babilon({ resolver, validate, exp: returnsReferences(exp(order), generateReturnsAs()) }).result,
       });
 
       const tracker = new Tracker();

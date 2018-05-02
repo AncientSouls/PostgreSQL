@@ -41,7 +41,7 @@ import {
 import {
   createResolver,
   resolverOptions,
-  validators,
+  validate,
 } from '../lib/rules-track';
 
 import {
@@ -143,8 +143,8 @@ export default (env) => {
       ];
 
       const trackerQuery = (exp, variables) => ({
-        fetchQuery: babilon({ validators, variables, exp, resolver: babilonResolver }).result,
-        trackQuery: babilon({ validators, variables, exp: returnsReferences(exp, generateReturnsAs()), resolver: babilonResolver }).result,
+        fetchQuery: babilon({ validate, variables, exp, resolver: babilonResolver }).result,
+        trackQuery: babilon({ validate, variables, exp: returnsReferences(exp, generateReturnsAs()), resolver: babilonResolver }).result,
       });
 
       const cursor = new Cursor();

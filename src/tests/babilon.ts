@@ -8,7 +8,7 @@ import {
 import {
   createResolver,
   resolverOptions as _resolverOptions,
-  validators,
+  validate,
 } from '../lib/rules-full';
 
 const resolverOptions = _.cloneDeep(_resolverOptions);
@@ -17,7 +17,7 @@ resolverOptions._constant = () => '';
 const resolver = createResolver(resolverOptions);
 
 const babi = (exp, result) => {
-  const b = babilon({ resolver, validators, exp, variables: { a: { b: { c: 123 } } } });
+  const b = babilon({ resolver, validate, exp, variables: { a: { b: { c: 123 } } } });
   assert.deepEqual(b.errors, []);
   assert.deepEqual(b.result, result);
   return b;

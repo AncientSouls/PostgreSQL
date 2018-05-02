@@ -8,7 +8,7 @@ const resolverOptions = _.cloneDeep(rules_full_1.resolverOptions);
 resolverOptions._constant = () => '';
 const resolver = rules_full_1.createResolver(resolverOptions);
 const babi = (exp, result) => {
-    const b = babilon_1.babilon({ resolver, validators: rules_full_1.validators, exp, variables: { a: { b: { c: 123 } } } });
+    const b = babilon_1.babilon({ resolver, validate: rules_full_1.validate, exp, variables: { a: { b: { c: 123 } } } });
     chai_1.assert.deepEqual(b.errors, []);
     chai_1.assert.deepEqual(b.result, result);
     return b;

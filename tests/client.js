@@ -13,9 +13,9 @@ const babilon_1 = require("ancient-babilon/lib/babilon");
 const client_1 = require("../lib/client");
 const tracker_1 = require("ancient-tracker/lib/tracker");
 const returns_references_1 = require("ancient-babilon/lib/returns-references");
-const rules_full_1 = require("../lib/rules-full");
+const rules_track_1 = require("../lib/rules-track");
 const triggers_1 = require("../lib/triggers");
-const resolver = rules_full_1.createResolver(rules_full_1.resolverOptions);
+const resolver = rules_track_1.createResolver(rules_track_1.resolverOptions);
 const delay = (time) => __awaiter(this, void 0, void 0, function* () { return new Promise(res => setTimeout(res, time)); });
 const testTableName = `test`;
 const num = process.env['TRAVIS_JOB_NUMBER'] ? parseInt(process.env['TRAVIS_JOB_NUMBER'].split('.')[1], 10) : 0;
@@ -61,8 +61,8 @@ exports.default = (env) => {
                 [`limit`, 2],
             ];
             const trackerQuery = (order = true) => ({
-                fetchQuery: babilon_1.babilon({ resolver, validators: rules_full_1.validators, exp: exp(order) }).result,
-                trackQuery: babilon_1.babilon({ resolver, validators: rules_full_1.validators, exp: returns_references_1.returnsReferences(exp(order), returns_references_1.generateReturnsAs()) }).result,
+                fetchQuery: babilon_1.babilon({ resolver, validate: rules_track_1.validate, exp: exp(order) }).result,
+                trackQuery: babilon_1.babilon({ resolver, validate: rules_track_1.validate, exp: returns_references_1.returnsReferences(exp(order), returns_references_1.generateReturnsAs()) }).result,
             });
             const tracker = new tracker_1.Tracker();
             tracker.query = trackerQuery(true);

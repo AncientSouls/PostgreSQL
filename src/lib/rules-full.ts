@@ -1,16 +1,19 @@
 import * as _ from 'lodash';
 import * as randomstring from 'randomstring';
 
+import { createValidate } from 'ancient-babilon/lib/validators';
+import { createRules, IRules } from 'ancient-babilon/lib/rules';
+import { IValidator } from 'ancient-babilon/lib/babilon';
 import {
+  types as defaultTypes,
   createResolver as _createResolver,
   resolverOptions as _resolverOptions,
 } from 'ancient-babilon/lib/proto-sql';
-import { createValidators } from 'ancient-babilon/lib/validators';
-import { rules as _rules, IRules } from 'ancient-babilon/lib/rules';
 
-export const rules = _.cloneDeep(_rules);
+export const types: any = _.cloneDeep(defaultTypes);
 
-export const validators = createValidators(rules);
+export const rules: IRules = createRules(types);
+export const validate = createValidate(rules);
 
 export const resolverOptions = {
   ..._resolverOptions,
