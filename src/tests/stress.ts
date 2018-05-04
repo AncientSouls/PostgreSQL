@@ -34,6 +34,7 @@ import {
   Asketic,
 } from 'ancient-tracker/lib/asketic';
 
+const ram = true;
 const resolver = createResolver(resolverOptions);
 
 const delay = async time => new Promise(res => setTimeout(res, time));
@@ -137,6 +138,7 @@ strategies.children[1].on('select', async (node) => {
     await strategy.client.destroy();
   }
   await env.client.query(env.triggers.unwrap(`test`));
+  
   clientId++;
   strategy.client = new Client(clientId);
   strategy.client.client = {
@@ -155,14 +157,16 @@ strategies.children[1].on('select', async (node) => {
   }
 });
 
-const start = async () => {
+const start = async (ram) => {
   const hash = {};
   log.log('starting'.white);
   await env.createClient();
   log.log('pg connected'.white);
   await env.tableReinit();
   await env.client.query(env.triggers.deinit());
-  await env.client.query(env.triggers.init());
+  ram? await env.client.query(`DROP TABLESPACE IF EXISTS ramdisk;`):null;
+  ram? await env.client.query(`CREATE TABLESPACE ramdisk LOCATION '/mnt/ramdisk';`):null;
+  await env.client.query(env.triggers.init(ram));
   log.log('table reinited'.white);
   
   log.log('start iterator'.white);
@@ -241,4 +245,4 @@ screen.on('resize', () => {
 
 screen.render();
 
-start();
+start(ram);

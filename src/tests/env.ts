@@ -21,10 +21,10 @@ export const newEnv = () => {
         );
       `);
     },
-    triggersReinit: async () => {
+    triggersReinit: async (ram = false) => {
       await env.client.query(env.triggers.unwrap(`test`));
       await env.client.query(env.triggers.deinit());
-      await env.client.query(env.triggers.init());
+      await env.client.query(env.triggers.init(ram));
       await env.client.query(env.triggers.wrap(`test`));
     },
     dockerStop: async () => {
@@ -34,7 +34,8 @@ export const newEnv = () => {
     dockerStart: async () => {
       await env.dockerStop();
       await execa.shell(`docker pull postgres`);
-      await execa.shell(`docker run --name postgres${port} -d -p ${port}:5432 postgres`);
+      await execa.shell(`docker run --privileged --name postgres${port} -d -p ${port}:5432 postgres`);
+      await execa.shell(`docker -it postgres5432 sh -c "mkdir /mnt/ramdisk && mount -t tmpfs -o size=20m tmpfs /mnt/ramdisk && chmod 0755 /mnt/ramdisk/ && chown postgres:postgres /mnt/ramdisk/"`);
       
       await env.delay(10000);
     },
