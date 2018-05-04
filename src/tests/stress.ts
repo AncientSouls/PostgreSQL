@@ -164,8 +164,8 @@ const start = async (ram) => {
   log.log('pg connected'.white);
   await env.tableReinit();
   await env.client.query(env.triggers.deinit());
-  ram? await env.client.query(`DROP TABLESPACE IF EXISTS ramdisk;`):null;
-  ram? await env.client.query(`CREATE TABLESPACE ramdisk LOCATION '/mnt/ramdisk';`):null;
+  ram ? await env.client.query(`DROP TABLESPACE IF EXISTS ramdisk;`) : null;
+  ram ? await env.client.query(`CREATE TABLESPACE ramdisk LOCATION '/mnt/ramdisk';`) : null;
   await env.client.query(env.triggers.init(ram));
   log.log('table reinited'.white);
   

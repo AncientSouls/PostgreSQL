@@ -7,13 +7,13 @@ export class Triggers {
   _t = `ancient_postgresql_truncate`;
 
   tracksTableInit(ram) {
-    return `CREATE ${ram?'UNLOGGED':''} TABLE IF NOT EXISTS ${this._tracks} (
+    return `CREATE ${ram ? 'UNLOGGED' : ''} TABLE IF NOT EXISTS ${this._tracks} (
       id SERIAL PRIMARY KEY,
       trackerId TEXT,
       channel TEXT,
       trackQuery TEXT,
       tracked TEXT
-    ) ${ram?'TABLESPACE ramdisk':''};`;
+    ) ${ram ? 'TABLESPACE ramdisk' : ''};`;
   }
 
   tracksTableDeinit() {
@@ -212,7 +212,7 @@ export class Triggers {
     return `DROP FUNCTION IF EXISTS ${this._t}_function;`;
   }
 
-  init(ram) {
+  init(ram = false) {
     return [
       this.tracksTableInit(ram),
       this.tracksFunctionInit(),

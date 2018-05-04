@@ -18,6 +18,7 @@ const tracker_1 = require("ancient-tracker/lib/tracker");
 const returns_references_1 = require("ancient-babilon/lib/returns-references");
 const rules_track_1 = require("../lib/rules-track");
 const triggers_1 = require("../lib/triggers");
+const ram = false;
 const resolver = rules_track_1.createResolver(rules_track_1.resolverOptions);
 const delay = (time) => __awaiter(this, void 0, void 0, function* () { return new Promise(res => setTimeout(res, time)); });
 const timing = (callback) => __awaiter(this, void 0, void 0, function* () {
@@ -94,9 +95,6 @@ strategies.children[1].on('select', (node) => __awaiter(this, void 0, void 0, fu
     yield env.client.query(env.triggers.unwrap(`test`));
     clientId++;
     strategy.client = new client_1.Client(clientId);
-    strategy.client.on('emit', ({ eventName }) => {
-        log.log(`client: ${strategy.client.id} :${eventName}`);
-    });
     strategy.client.client = {
         triggers: env.triggers,
         pg: env.client,
@@ -112,14 +110,16 @@ strategies.children[1].on('select', (node) => __awaiter(this, void 0, void 0, fu
         }
     }
 }));
-const start = () => __awaiter(this, void 0, void 0, function* () {
+const start = (ram) => __awaiter(this, void 0, void 0, function* () {
     const hash = {};
     log.log('starting'.white);
     yield env.createClient();
     log.log('pg connected'.white);
     yield env.tableReinit();
     yield env.client.query(env.triggers.deinit());
-    yield env.client.query(env.triggers.init());
+    ram ? yield env.client.query(`DROP TABLESPACE IF EXISTS ramdisk;`) : null;
+    ram ? yield env.client.query(`CREATE TABLESPACE ramdisk LOCATION '/mnt/ramdisk';`) : null;
+    yield env.client.query(env.triggers.init(ram));
     log.log('table reinited'.white);
     log.log('start iterator'.white);
     const numbers = {};
@@ -145,32 +145,27 @@ const start = () => __awaiter(this, void 0, void 0, function* () {
     (() => __awaiter(this, void 0, void 0, function* () {
         while (true) {
             i++;
-            const ins = yield timing(() => __awaiter(this, void 0, void 0, function* () {
-                let i;
-                for (i = 1; i < 10; i++) {
-                    yield env.client.query(`insert into test (num) values (${_.random(1, 999999999)});`);
-                }
-            }));
-            const upd = yield timing(() => __awaiter(this, void 0, void 0, function* () {
-                let i;
-                for (i = 1; i < 10; i++) {
-                    yield env.client.query(`update test set num = ${_.random(1, 999999999)} where id = (select id from test limit 1);`);
-                }
-            }));
-            const del = yield timing(() => __awaiter(this, void 0, void 0, function* () {
-                let i;
-                for (i = 1; i < 10; i++) {
-                    yield env.client.query(`delete from test where id = (select id from test limit 1);`);
-                }
-            }));
             const times = {
-                inserts: ins,
-                updates: upd,
-                deletes: del,
+                inserts: yield timing(() => __awaiter(this, void 0, void 0, function* () {
+                    let i;
+                    for (i = 1; i < 10; i++) {
+                        yield env.client.query(`insert into test (num) values (${_.random(1, 999999999)});`);
+                    }
+                })),
+                updates: yield timing(() => __awaiter(this, void 0, void 0, function* () {
+                    let i;
+                    for (i = 1; i < 10; i++) {
+                        yield env.client.query(`update test set num = ${_.random(1, 999999999)} where id = (select id from test limit 1);`);
+                    }
+                })),
+                deletes: yield timing(() => __awaiter(this, void 0, void 0, function* () {
+                    let i;
+                    for (i = 1; i < 10; i++) {
+                        yield env.client.query(`delete from test where id = (select id from test limit 1);`);
+                    }
+                })),
             };
             log.log(`${i}: ${String(times.inserts).blue} ${String(times.updates).yellow} ${String(times.deletes).red}`);
-            const tracks = yield env.client.query(`select * from ${env.triggers._tracks}`);
-            log.log(`tracks: ${tracks.rows.length}`.grey);
             _.each(times, (time, name) => {
                 lines.options.maxY = _.max(_.flatten(_.map(_.values(numbers), (n) => n.y)));
                 numbers[name].y.push(time);
@@ -191,5 +186,5 @@ screen.on('resize', () => {
     strategies.emit('attach');
 });
 screen.render();
-start();
+start(ram);
 //# sourceMappingURL=stress.js.map

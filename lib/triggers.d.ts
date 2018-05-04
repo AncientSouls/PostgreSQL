@@ -3,7 +3,7 @@ export declare class Triggers {
     _iu: string;
     _d: string;
     _t: string;
-    tracksTableInit(): string;
+    tracksTableInit(ram: any): string;
     tracksTableDeinit(): string;
     tracksFunctionInit(): string;
     tracksFunctionDeinit(): string;
@@ -15,7 +15,7 @@ export declare class Triggers {
     deleteFunctionDeinit(): string;
     truncateFunctionInit(): string;
     truncateFunctionDeinit(): string;
-    init(): string;
+    init(ram?: boolean): string;
     deinit(): string;
     wrap(table: any): string;
     unwrap(table: any): string;
