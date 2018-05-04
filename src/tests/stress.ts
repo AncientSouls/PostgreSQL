@@ -34,7 +34,7 @@ import {
   Asketic,
 } from 'ancient-tracker/lib/asketic';
 
-const ram = true;
+const ram = false;
 const resolver = createResolver(resolverOptions);
 
 const delay = async time => new Promise(res => setTimeout(res, time));
