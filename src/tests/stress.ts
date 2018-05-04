@@ -195,28 +195,25 @@ const start = async () => {
   (async () => {
     while (true) {
       i++;
-      const ins = await timing(async () => {
-        let i;
-        for (i = 1; i < 10; i++) {
-          await env.client.query(`insert into test (num) values (${_.random(1,999999999)});`);
-        }
-      });
-      const upd = await timing(async () => {
-        let i;
-        for (i = 1; i < 10; i++) {
-          await env.client.query(`update test set num = ${_.random(1,999999999)} where id = (select id from test limit 1);`);
-        }
-      });
-      const del = await timing(async () => {
-        let i;
-        for (i = 1; i < 10; i++) {
-          await env.client.query(`delete from test where id = (select id from test limit 1);`);
-        }
-      });
       const times = {
-        inserts: ins,
-        updates: upd,
-        deletes: del,
+        inserts: await timing(async () => {
+          let i;
+          for (i = 1; i < 10; i++) {
+            await env.client.query(`insert into test (num) values (${_.random(1,999999999)});`);
+          }
+        }),
+        updates: await timing(async () => {
+          let i;
+          for (i = 1; i < 10; i++) {
+            await env.client.query(`update test set num = ${_.random(1,999999999)} where id = (select id from test limit 1);`);
+          }
+        }),
+        deletes: await timing(async () => {
+          let i;
+          for (i = 1; i < 10; i++) {
+            await env.client.query(`delete from test where id = (select id from test limit 1);`);
+          }
+        }),
       };
       log.log(`${i}: ${String(times.inserts).blue} ${String(times.updates).yellow} ${String(times.deletes).red}`);
 
