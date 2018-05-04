@@ -46,8 +46,7 @@ exports.newEnv = () => {
         dockerStart: () => __awaiter(this, void 0, void 0, function* () {
             yield env.dockerStop();
             yield execa.shell(`docker pull postgres`);
-            yield execa.shell(`docker run --privileged --name postgres${port} -d -p ${port}:5432 postgres`);
-            yield execa.shell(`docker -it postgres5432 sh -c "mkdir /mnt/ramdisk && mount -t tmpfs -o size=20m tmpfs /mnt/ramdisk && chmod 0755 /mnt/ramdisk/ && chown postgres:postgres /mnt/ramdisk/"`);
+            yield execa.shell(`docker run --name postgres${port} -d -p ${port}:5432 postgres`);
             yield env.delay(10000);
         }),
         createClient: () => __awaiter(this, void 0, void 0, function* () {
