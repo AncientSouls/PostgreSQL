@@ -34,7 +34,7 @@ import {
   Asketic,
 } from 'ancient-tracker/lib/asketic';
 
-const ram = false;
+let ram = false;
 const resolver = createResolver(resolverOptions);
 
 const delay = async time => new Promise(res => setTimeout(res, time));
@@ -92,23 +92,28 @@ const strategies = grid.set(
     height: '0%',
     border: { type: 'line', fg: 'cyan' },
     columnSpacing: 0,
-    columnWidth: [10, 10],
+    columnWidth: [7, 7, 7],
   },
 );
 
 strategies.focus();
 
 const strategiesData = [
-  [0,0],
-  [1,0],
-  [1,1],
+  [0,0,0],
+  [0,0,1],
+  [1,0,0],
+  [1,0,1],
+  [1,1,0],
+  [1,1,1],
 ];
 for (let s = 0; s < 20; s++) {
-  strategiesData.push([1,Math.ceil(_.last(strategiesData)[1] * 1.5)]);
+  let last = _.last(strategiesData)[1];
+  strategiesData.push([1,Math.ceil(last * 1.5),0]);
+  strategiesData.push([1,Math.ceil(last * 1.5),1]);
 }
 
 strategies.setData({
-  headers: ['Triggers', 'Trackings'],
+  headers: ['Trig', 'Track', 'Ram'],
   data: strategiesData,
 });
 
@@ -147,6 +152,7 @@ strategies.children[1].on('select', async (node) => {
   };
   await strategy.client.start();
   if (str[0]) {
+    ram = str[2]? true : false;
     await env.client.query(env.triggers.wrap(`test`));
     for (let t = 0; t < str[1]; t++) {
       trackerId++;
@@ -164,11 +170,8 @@ const start = async (ram) => {
   log.log('pg connected'.white);
   await env.tableReinit();
   await env.client.query(env.triggers.deinit());
-  ram ? await env.client.query(`DROP TABLESPACE IF EXISTS ramdisk;`) : null;
-  ram ? await env.client.query(`CREATE TABLESPACE ramdisk LOCATION '/mnt/ramdisk';`) : null;
   await env.client.query(env.triggers.init(ram));
   log.log('table reinited'.white);
-  
   log.log('start iterator'.white);
 
   const numbers: any = {};
