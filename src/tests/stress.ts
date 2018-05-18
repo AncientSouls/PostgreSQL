@@ -153,6 +153,16 @@ strategies.children[1].on('select', async (node) => {
   await strategy.client.start();
   if (str[0]) {
     ram = str[2]? true : false;
+    if (ram) {
+      await env.client.query(env.triggers.deinit());
+      await env.client.query(`DROP TABLESPACE IF EXISTS ramdisk;`);
+      await env.client.query(`CREATE TABLESPACE ramdisk LOCATION '/mnt/ramdisk'`);
+      await env.client.query(env.triggers.init(ram));
+    } else{
+      await env.client.query(env.triggers.deinit());
+      await env.client.query(`DROP TABLESPACE IF EXISTS ramdisk;`);
+      await env.client.query(env.triggers.init(ram));
+    }
     await env.client.query(env.triggers.wrap(`test`));
     for (let t = 0; t < str[1]; t++) {
       trackerId++;
@@ -170,7 +180,7 @@ const start = async (ram) => {
   log.log('pg connected'.white);
   await env.tableReinit();
   await env.client.query(env.triggers.deinit());
-  await env.client.query(env.triggers.init(ram));
+  await env.client.query(env.triggers.init());
   log.log('table reinited'.white);
   log.log('start iterator'.white);
 
