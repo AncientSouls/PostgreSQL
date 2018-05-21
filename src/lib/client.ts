@@ -36,8 +36,17 @@ export function mixin<T extends TClass<IInstance>>(
     async tracking(tracker) {
       tracker.fetch = async () => _.map((await this.client.pg.query(tracker.query.fetchQuery)).rows, r => _.toPlainObject(r));
       await this.client.pg.query(
-        `insert into ${this.client.triggers._tracks} (trackerId,channel,trackQuery) values ($1,$2,$3);`,
-        [tracker.id, this.id, tracker.query.trackQuery],
+        `DO LANGUAGE plperl $plperl$
+          $tracked = spi_exec_prepared(
+            spi_prepare(
+              q(SELECT $$'$$ || string_agg ($$"$$||tracked||$$"$$, $$', '$$) || $$'$$ as str FROM (${tracker.query.trackQuery}) AS tracked)
+            ))->{rows}[0]->{str};
+
+          $prepared = spi_prepare('insert into ancient_postgresql_tracks(trackerId,channel,trackQuery,tracked) values ($1, $2, $3, $4)', 'TEXT' ,'TEXT', 'TEXT', 'TEXT');
+
+          spi_exec_prepared($prepared, '${tracker.id}', '${this.id}', '${tracker.query.trackQuery}', $tracked)
+        $plperl$
+        `
       );
     }
     async untracking(tracker) {
