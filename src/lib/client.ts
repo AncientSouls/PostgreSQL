@@ -39,12 +39,13 @@ export function mixin<T extends TClass<IInstance>>(
         `DO LANGUAGE plperl $plperl$
           $tracked = spi_exec_prepared(
             spi_prepare(
-              q(SELECT $$'$$ || string_agg ($$"$$||tracked||$$"$$, $$', '$$) || $$'$$ as str FROM (${tracker.query.trackQuery}) AS tracked)
+              q(SELECT $$'$$ || string_agg ('"('||tracked.from || ',' || tracked.id||')"', $$','$$) || $$'$$ as str FROM (${tracker.query.trackQuery}) AS tracked)
             ))->{rows}[0]->{str};
 
-          $prepared = spi_prepare('insert into ancient_postgresql_tracks(trackerId,channel,trackQuery,tracked) values ($1, $2, $3, $4)', 'TEXT' ,'TEXT', 'TEXT', 'TEXT');
+          $_SHARED{${this.client.triggers._tracks}}{${tracker.id}} = $tracked;
 
-          spi_exec_prepared($prepared, '${tracker.id}', '${this.id}', '${tracker.query.trackQuery}', $tracked)
+          $prepared = spi_prepare('insert into ${this.client.triggers._tracks}(trackerId,channel,trackQuery) values ($1, $2, $3)', 'TEXT' ,'TEXT', 'TEXT');
+          spi_exec_prepared($prepared, '${tracker.id}', '${this.id}', '${tracker.query.trackQuery}')
         $plperl$
         `
       );

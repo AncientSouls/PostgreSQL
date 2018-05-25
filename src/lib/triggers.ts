@@ -22,18 +22,18 @@ export class Triggers {
 
   tracksFunctionInit() {
     return `CREATE OR REPLACE FUNCTION ${this._tracks}_function() RETURNS TRIGGER AS $trigger$
-      DECLARE tracked TEXT;
-      BEGIN
-        EXECUTE $exec$
-          SELECT $$'$$ || string_agg ('"'||tracked||'"', $$', '$$) || $$'$$
-          FROM ($exec$ || NEW.trackQuery || $exec$) AS tracked
-        $exec$ INTO NEW.tracked;
-        IF NEW.tracked IS NULL THEN
-          NEW.tracked := $$('')$$;
-        END IF;
-        RETURN NEW;
-      END;
-    $trigger$ LANGUAGE PLPGSQL;`;
+
+    $tracked = spi_exec_prepared(
+      spi_prepare(
+        q{SELECT $$'$$ || string_agg ('"('||tracked.from || ',' || tracked.id||')"', $$','$$) || $$'$$ as str FROM (}.$_TD->{new}{trackquery}.q{) AS tracked}
+      ))->{rows}[0]->{str};
+    if ($_SHARED{${this._tracks}}{$_TD->{new}{id}} == $tracked){
+      return;
+    } else {
+      $_SHARED{${this._tracks}}{$_TD->{new}{id}} = $tracked;
+      return "MODIFY";
+    }
+    $trigger$ LANGUAGE plperl;`;
   }
 
   tracksFunctionDeinit() {
@@ -41,7 +41,7 @@ export class Triggers {
   }
 
   tracksTriggerInit() {
-    return `CREATE TRIGGER ${this._tracks}_trigger BEFORE INSERT OR UPDATE ON ${this._tracks} FOR EACH ROW EXECUTE PROCEDURE ${this._tracks}_function();`;
+    return `CREATE TRIGGER ${this._tracks}_trigger BEFORE UPDATE ON ${this._tracks} FOR EACH ROW EXECUTE PROCEDURE ${this._tracks}_function();`;
   }
 
   tracksTriggerDeinit() {
@@ -50,51 +50,63 @@ export class Triggers {
 
   insertUpdateFunctionInit() {
     return `
-      CREATE OR REPLACE function ${this._iu}_function() RETURNS TRIGGER AS $trigger$
-      DECLARE currentTracking RECORD; BEGIN
-        FOR currentTracking
-        IN EXECUTE (
-          SELECT COALESCE ((
-            string_agg ($$(
+    CREATE OR REPLACE function ${this._iu}_function() RETURNS TRIGGER AS $trigger$
+    $generating_query = q{
+      SELECT 
+        string_agg ($$(
+          SELECT
+            oneTracking.trackerId,
+            oneTracking.channel,
+            oneTracking.trackQuery
+          FROM (
+            (
               SELECT
-                oneTracking.trackerId,
-                oneTracking.channel
-              FROM (
-                (
-                  SELECT
-                    '$$ || ${this._tracks}.trackerId || $$' AS trackerId,
-                    '$$ || ${this._tracks}.channel || $$' AS channel
-                  FROM
-                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults
-                  WHERE
-                    trackResults.id = '$$ || NEW.id || $$' and
-                    trackResults.from = '$$ || TG_TABLE_NAME || $$'
-                )
-                UNION
-                (
-                  SELECT
-                    '$$ || ${this._tracks}.trackerId || $$' AS trackerId,
-                    '$$ || ${this._tracks}.channel || $$' AS channel
-                  FROM
-                    ($$ || ${this._tracks}.trackQuery || $$) AS trackResults
-                  WHERE
-                    '$$ || '"(' || TG_TABLE_NAME || $$,$$ || NEW.id || ')"' || $$' IN ($$ || ${this._tracks}.tracked || $$)
-                )
-              ) AS oneTracking
-              LIMIT 1
-            )$$, ' union ')
-          ), 'select 1 limit 0')
-          FROM ${this._tracks}
-        )
-        LOOP
-          UPDATE ${this._tracks} SET tracked = '' WHERE trackerId = currentTracking.trackerId;
-          PERFORM pg_notify (
-            currentTracking.channel, 
-            '{ "table": "' || TG_TABLE_NAME || E'", "id": ' || NEW.id || ', "trackerId": "' ||currentTracking.trackerId || '", "event": "' || TG_OP || '" }'
-          );
-        END LOOP;
-        RETURN NEW;
-      END; $trigger$ LANGUAGE plpgsql;
+                '$$ || ${this._tracks}.trackerId || $$' AS trackerId,
+                '$$ || ${this._tracks}.channel || $$' AS channel,
+                '$$ || ${this._tracks}.trackQuery || $$' AS trackQuery
+              FROM
+                ($$ || ${this._tracks}.trackQuery || $$) AS trackResults
+              WHERE
+                trackResults.id = }. $_TD->{new}{id} .q{ and
+                trackResults.from = '}. $_TD->{table_name} .q{'
+            )
+            UNION
+            (
+              SELECT
+                '$$ || ${this._tracks}.trackerId || $$' AS trackerId,
+                '$$ || ${this._tracks}.channel || $$' AS channel,
+                '$$ || ${this._tracks}.trackQuery || $$' AS trackQuery
+              FROM
+                ($$ || ${this._tracks}.trackQuery || $$) AS trackResults
+              WHERE
+              '"(}.$_TD->{table_name}.','. $_TD->{new}{id} .q{)"' IN  (select get_tracked('$$ || ${this._tracks}.trackerId || $$'))
+            )
+          ) AS oneTracking
+          LIMIT 1
+        )$$, ' union ') as str
+      FROM ${this._tracks}
+      };
+    
+    $query = spi_exec_query($generating_query)->{rows}[0] -> {str};
+
+    if (spi_exec_query('select * from ${this._tracks}')->{processed} > 1) { 
+      elog(ERROR, spi_exec_query('select * from ${this._tracks}')->{processed});
+    }
+    if ($query != ''){
+      $trackings = spi_exec_query($query);
+      foreach $one ($trackings->{rows}) {
+        $q = q{ SELECT $$'$$ || string_agg ('"('||tracked.from || ',' || tracked.id||')"', $$','$$) || $$'$$ FROM (}.$one->{trackerId}.q{) AS tracked};
+        $tracked = spi_exec_prepared(
+          spi_prepare(
+            $q,
+            'TEXT'
+          ), $one->{trackQuery})->{rows}[0]->{string_agg};
+      }
+    }
+
+
+    return;
+    $trigger$ LANGUAGE plperl;
     `;
   }
 
