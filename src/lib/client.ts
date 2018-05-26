@@ -42,7 +42,7 @@ export function mixin<T extends TClass<IInstance>>(
               q(SELECT $$'$$ || string_agg ('"('||tracked.from || ',' || tracked.id||')"', $$','$$) || $$'$$ as str FROM (${tracker.query.trackQuery}) AS tracked)
             ))->{rows}[0]->{str};
 
-          $_SHARED{${this.client.triggers._tracks}}{${tracker.id}} = $tracked;
+          $_SHARED{${this.client.triggers._tracks}}{'${tracker.id}'} = $tracked;
 
           $prepared = spi_prepare('insert into ${this.client.triggers._tracks}(trackerId,channel,trackQuery) values ($1, $2, $3)', 'TEXT' ,'TEXT', 'TEXT');
           spi_exec_prepared($prepared, '${tracker.id}', '${this.id}', '${tracker.query.trackQuery}')

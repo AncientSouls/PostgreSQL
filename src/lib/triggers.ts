@@ -87,22 +87,40 @@ export class Triggers {
       FROM ${this._tracks}
       };
     
-    $query = spi_exec_query($generating_query)->{rows}[0] -> {str};
+    $query = spi_exec_query($generating_query)->{rows}[0]->{str};
 
-    if (spi_exec_query('select * from ${this._tracks}')->{processed} > 1) { 
-      elog(ERROR, spi_exec_query('select * from ${this._tracks}')->{processed});
-    }
-    if ($query != ''){
-      $trackings = spi_exec_query($query);
-      foreach $one ($trackings->{rows}) {
-        $q = q{ SELECT $$'$$ || string_agg ('"('||tracked.from || ',' || tracked.id||')"', $$','$$) || $$'$$ FROM (}.$one->{trackerId}.q{) AS tracked};
+    if (defined($query)) {
+
+      @trackings = spi_exec_query($query)->{rows};
+      foreach $one ($trackings[0][0]) {
+
+        $q = q{SELECT $$'$$ || string_agg ('"('||tracked.from || ',' || tracked.id||')"', $$','$$) || $$'$$ as str FROM (}.$one->{trackquery}.q{) AS tracked};
+
         $tracked = spi_exec_prepared(
           spi_prepare(
             $q,
             'TEXT'
-          ), $one->{trackQuery})->{rows}[0]->{string_agg};
+          ), $one{trackQuery})->{rows}[0]->{str};
+
+        $_SHARED{${this._tracks}}{$one{trackerId}} = $tracked;
+        
+        $str = qq{ 
+          select pg_notify (
+            '$one->{channel}', 
+            '{ 
+              "table": "$_TD->{table_name}", 
+              "trackerId": "$one->{trackerid}", 
+              "event": "$_TD->{event}" 
+            }'
+          )
+        };
+        spi_exec_query( $str );
       }
     }
+    
+    
+
+    
 
 
     return;
